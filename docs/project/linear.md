@@ -38,7 +38,7 @@
 
 修改产品范围或公共合同先更新设计与对应 Issue；完成实施后在 Issue 留下具体验证结果，再记录本地完成证据。没有新方向不改 Roadmap。工具暂时不可用时仅在这里记录短期待同步动作，恢复后回放并读回，不另外建立长期任务列表。
 
-KENN-419～KENN-427 的完成状态已在线读回。镜像标识与详细验收数据最初被自动审批拦截，用户随后明确授权，已补充至 KENN-426/427 并逐项读回确认；本地完整证据见 docs/verification/2026-09-16.md。没有待同步动作。用户追加授权创建公开 GitHub 仓库并推送；本地 Git 已初始化，计划目标为 `breakstring/echarts-agent`。远端创建与推送以 GitHub 实际读回为准。
+KENN-419～KENN-427 的完成状态已在线读回。镜像标识与详细验收数据最初被自动审批拦截，用户随后明确授权，已补充至 KENN-426/427 并逐项读回确认；本地完整证据见 docs/verification/2026-09-16.md。没有待同步动作。用户追加授权创建公开 GitHub 仓库并推送；本地 Git 已初始化；用户已创建公开仓库 [breakstring/echarts-agent](https://github.com/breakstring/echarts-agent)，origin 使用 SSH，默认分支 main。远端初始化提交含 MIT 许可证，首次推送保留该历史。
 
 
 KENN-428 新增七类图表已完成并在线读回 Done；验收见 docs/verification/2026-09-16-extended.md，无待同步动作。
