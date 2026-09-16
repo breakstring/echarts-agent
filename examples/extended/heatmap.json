@@ -1,0 +1,46 @@
+{
+  "spec": {
+    "type": "heatmap",
+    "title": "班级活动次数",
+    "data": [
+      {
+        "day": "周一",
+        "group": "小班",
+        "count": 2
+      },
+      {
+        "day": "周二",
+        "group": "小班",
+        "count": 5
+      },
+      {
+        "day": "周三",
+        "group": "小班",
+        "count": 3
+      },
+      {
+        "day": "周一",
+        "group": "中班",
+        "count": 4
+      },
+      {
+        "day": "周二",
+        "group": "中班",
+        "count": 1
+      },
+      {
+        "day": "周三",
+        "group": "中班",
+        "count": 6
+      }
+    ],
+    "encoding": {
+      "x": "day",
+      "y": "group",
+      "value": "count"
+    }
+  },
+  "output": {
+    "format": "png"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "intent": "用折线图表现月度数量趋势，中文标题",
+  "data": [{"month": "一月", "count": 12}, {"month": "二月", "count": 18}],
+  "output": {"format": "png"}
+}

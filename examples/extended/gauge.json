@@ -1,0 +1,22 @@
+{
+  "spec": {
+    "type": "gauge",
+    "title": "活动完成率",
+    "data": [
+      {
+        "name": "本月完成率",
+        "value": 78
+      }
+    ],
+    "encoding": {
+      "name": "name",
+      "value": "value"
+    },
+    "min": 0,
+    "max": 100,
+    "unit": "%"
+  },
+  "output": {
+    "format": "png"
+  }
+}

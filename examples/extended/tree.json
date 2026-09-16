@@ -1,0 +1,46 @@
+{
+  "spec": {
+    "type": "tree",
+    "title": "活动层级",
+    "data": [
+      {
+        "id": "root",
+        "parent": "",
+        "name": "总投入",
+        "value": 100
+      },
+      {
+        "id": "teaching",
+        "parent": "root",
+        "name": "教学活动",
+        "value": 60
+      },
+      {
+        "id": "sports",
+        "parent": "root",
+        "name": "体育活动",
+        "value": 40
+      },
+      {
+        "id": "language",
+        "parent": "teaching",
+        "name": "语言表达",
+        "value": 35
+      },
+      {
+        "id": "art",
+        "parent": "teaching",
+        "name": "艺术创作",
+        "value": 25
+      }
+    ],
+    "encoding": {
+      "id": "id",
+      "parent": "parent",
+      "name": "name"
+    }
+  },
+  "output": {
+    "format": "png"
+  }
+}

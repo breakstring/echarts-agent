@@ -1,0 +1,12 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { ClientFactory, JsonRpcTransportFactory, DefaultAgentCardResolver } from '@a2a-js/sdk-v0_3/client';
+const root = process.env.CHART_URL ?? 'http://127.0.0.1:3000';
+if (!process.env.SERVICE_API_KEY) throw new Error('需要 SERVICE_API_KEY');
+const fetchImpl = (url, init) => fetch(url, { ...init, headers: { ...init?.headers, authorization: `Bearer ${process.env.SERVICE_API_KEY}` } });
+const client = await new ClientFactory({ transports: [new JsonRpcTransportFactory({ fetchImpl })], cardResolver: new DefaultAgentCardResolver({ fetchImpl }) }).createFromUrl(root);
+const request = JSON.parse(await readFile(new URL('./chart.json', import.meta.url), 'utf8'));
+const task = await client.sendMessage({ message: { kind: 'message', role: 'user', messageId: randomUUID(), parts: [{ kind: 'data', data: { operation: 'chart', request } }] } });
+if (task.kind !== 'task' || task.status.state !== 'completed') throw new Error('图表任务未完成');
+await writeFile('chart-a2a.png', Buffer.from(task.artifacts[0].parts[0].file.bytes, 'base64'));
+console.log('已保存 chart-a2a.png');

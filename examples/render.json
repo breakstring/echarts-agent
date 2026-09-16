@@ -1,0 +1,9 @@
+{
+  "option": {
+    "title": {"text": "月度数量"},
+    "xAxis": {"type": "category", "data": ["一月", "二月"]},
+    "yAxis": {"type": "value"},
+    "series": [{"type": "bar", "data": [12, 18]}]
+  },
+  "output": {"format": "svg"}
+}

@@ -1,0 +1,11 @@
+{
+  "spec": {
+    "type": "bar",
+    "title": "月度数量",
+    "data": [{"month": "一月", "count": 12}, {"month": "二月", "count": 18}],
+    "encoding": {"x": "month", "y": ["count"]},
+    "labels": {"count": "数量"}
+  },
+  "style": {"theme": "light"},
+  "output": {"format": "png", "width": 960, "height": 540, "pixelRatio": 2}
+}

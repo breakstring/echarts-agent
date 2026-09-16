@@ -1,0 +1,46 @@
+{
+  "spec": {
+    "type": "sankey",
+    "title": "活动资源流向",
+    "data": [
+      {
+        "source": "课程资源",
+        "target": "语言活动",
+        "value": 35
+      },
+      {
+        "source": "课程资源",
+        "target": "艺术活动",
+        "value": 25
+      },
+      {
+        "source": "体育资源",
+        "target": "运动活动",
+        "value": 40
+      },
+      {
+        "source": "语言活动",
+        "target": "综合展示",
+        "value": 35
+      },
+      {
+        "source": "艺术活动",
+        "target": "综合展示",
+        "value": 25
+      },
+      {
+        "source": "运动活动",
+        "target": "综合展示",
+        "value": 40
+      }
+    ],
+    "encoding": {
+      "source": "source",
+      "target": "target",
+      "value": "value"
+    }
+  },
+  "output": {
+    "format": "png"
+  }
+}
