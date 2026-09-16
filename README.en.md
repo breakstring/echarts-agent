@@ -62,6 +62,27 @@ docker run --rm --name echarts-agent \
 
 `latest` points to the most recently published stable release. Use a version tag or digest for reproducible deployments. Package visibility is separate from repository visibility. If pulling requires authentication after the first publish, the maintainer should make the package Public using the [release guide](docs/container-release.md).
 
+### Use Docker Compose
+
+The generic `compose.yaml` uses a prebuilt image, contains no server, domain, or proxy settings, and publishes no host ports. Put deployment configuration in the Git-ignored `compose.override.yaml`, for example:
+
+```yaml
+services:
+  echarts-agent:
+    environment:
+      SERVICE_API_KEY: "replace-with-a-random-secret"
+      LLM_ENABLED: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+```
+
+```bash
+chmod 600 compose.override.yaml
+ECHARTS_AGENT_IMAGE=ghcr.io/breakstring/echarts-agent:0.1.0 docker compose up -d --no-build --wait
+```
+
+Model environment variables can also go in the override's `environment`; this Compose configuration does not read `.env.local`. Escape literal `$` characters as `$$` to prevent Compose interpolation. For internal deployments, configure a shared network in the private override. Explicit anonymous access also requires clearing `SERVICE_API_KEY`. Keep server, network, and Traefik settings in the private override.
+
 ### Build from source
 
 Build and start the container from the project root:

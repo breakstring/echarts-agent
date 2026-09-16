@@ -62,6 +62,27 @@ docker run --rm --name echarts-agent \
 
 `latest` 指向最近一次发布的正式版；需要可复现部署时使用版本标签或 digest。首次发布的镜像可见性与代码仓库独立；若拉取提示需要认证，请维护者按[发布说明](docs/container-release.md)将 Package 设为 Public。
 
+### 使用 Docker Compose
+
+仓库提供通用 `compose.yaml`，仅使用预构建镜像，不包含服务器、域名或代理设置，也不发布宿主机端口。将部署配置写入被 Git 忽略的 `compose.override.yaml`，例如：
+
+```yaml
+services:
+  echarts-agent:
+    environment:
+      SERVICE_API_KEY: "replace-with-a-random-secret"
+      LLM_ENABLED: "false"
+    ports:
+      - "127.0.0.1:3000:3000"
+```
+
+```bash
+chmod 600 compose.override.yaml
+ECHARTS_AGENT_IMAGE=ghcr.io/breakstring/echarts-agent:0.1.0 docker compose up -d --no-build --wait
+```
+
+模型环境变量也可写入 override 的 `environment`，无需另行维护 `.env.local`；此 Compose 不读取该文件。环境值中的字面 `$` 应写为 `$$`，避免 Compose 插值。内网部署可在私有 override 中配置共享网络；如显式启用匿名访问，需同时清空 `SERVICE_API_KEY`。服务器、网络和 Traefik 设置均保留在私有 override 中。
+
 ### 从源码构建
 
 在项目根目录构建并启动：

@@ -6,3 +6,6 @@ artifacts/
 !.env.example
 *.log
 .DS_Store
+/.agents/skills/echarts-agent-deploy/
+/compose.override.yaml
+/.deploy-backups/
