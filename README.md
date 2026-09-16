@@ -46,6 +46,24 @@ curl --fail-with-body http://127.0.0.1:3000/health/ready
 
 ## 使用 Docker
 
+### 使用 GHCR 预构建镜像
+
+正式版镜像地址：`ghcr.io/breakstring/echarts-agent`，支持 Linux AMD64 和 ARM64。镜像设为 Public 后无需登录即可拉取：
+
+```bash
+docker pull ghcr.io/breakstring/echarts-agent:0.1.0
+docker run --rm --name echarts-agent \
+  -p 127.0.0.1:3000:3000 \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  --memory 768m --cpus 2 --pids-limit 128 \
+  -e ALLOW_ANONYMOUS=true -e LLM_ENABLED=false \
+  ghcr.io/breakstring/echarts-agent:0.1.0
+```
+
+`latest` 指向最近一次发布的正式版；需要可复现部署时使用版本标签或 digest。首次发布的镜像可见性与代码仓库独立；若拉取提示需要认证，请维护者按[发布说明](docs/container-release.md)将 Package 设为 Public。
+
+### 从源码构建
+
 在项目根目录构建并启动：
 
 ```bash

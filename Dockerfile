@@ -12,7 +12,7 @@ WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0 FONTCONFIG_FILE=/app/assets/fonts/fonts.conf
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
-COPY --chown=node:node package.json ./
+COPY --chown=node:node package.json LICENSE ./
 COPY --chown=node:node assets ./assets
 USER node
 EXPOSE 3000

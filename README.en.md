@@ -46,6 +46,24 @@ curl --fail-with-body http://127.0.0.1:3000/health/ready
 
 ## Run with Docker
 
+### Use the prebuilt GHCR image
+
+Release image: `ghcr.io/breakstring/echarts-agent`, supporting Linux AMD64 and ARM64. Once the package is Public, no login is required:
+
+```bash
+docker pull ghcr.io/breakstring/echarts-agent:0.1.0
+docker run --rm --name echarts-agent \
+  -p 127.0.0.1:3000:3000 \
+  --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  --memory 768m --cpus 2 --pids-limit 128 \
+  -e ALLOW_ANONYMOUS=true -e LLM_ENABLED=false \
+  ghcr.io/breakstring/echarts-agent:0.1.0
+```
+
+`latest` points to the most recently published stable release. Use a version tag or digest for reproducible deployments. Package visibility is separate from repository visibility. If pulling requires authentication after the first publish, the maintainer should make the package Public using the [release guide](docs/container-release.md).
+
+### Build from source
+
 Build and start the container from the project root:
 
 ```bash
