@@ -11,12 +11,13 @@ description: 接入用户已部署的 ECharts Agent 图表服务，配置 MCP �
 
 - 优先采用用户提供的服务地址或已有连接配置。`CHART_URL` 必须是服务 origin，例如 `https://charts.example.com`，不含路径、查询参数、片段或 URL 凭据；不要猜测本机端口或把示例域名当作目标。
 - 复用宿主已有的安全认证配置。需要新凭据时，让用户在宿主的密钥设置或本地进程环境中配置 `SERVICE_API_KEY`；不要让用户把密钥粘贴到对话、请求 JSON 或命令参数中，也不要读取并打印其值。
+- HTTP/MCP/A2A 共用鉴权模式：服务有 key 时均要求 Bearer，即使允许匿名；无 key 且显式 `ALLOW_ANONYMOUS=true` 时均可匿名。只按部署方确认的模式接入，不自行改变模式。
 - 先检查宿主真正具备的连接与文件保存能力。不要仅因安装了本技能便宣称已经支持远程 MCP 或 A2A。
 
 ## 选择连接方式
 
-1. 宿主支持远程 MCP 时，连接 `CHART_URL` 下的 `/mcp`，使用 **Streamable HTTP** 和 Bearer 认证。服务没有 stdio 模式。使用宿主实际发现的工具，不能假设 MCP 注册名称或工具前缀。
-2. 宿主已有 A2A 编排能力时，读取受认证保护的 `/.well-known/agent-card.json`，按其接口连接。优先协商 1.0；不要为接入服务擅自升级宿主。
+1. 宿主支持远程 MCP 时，连接 `CHART_URL` 下的 `/mcp`，使用 **Streamable HTTP**，需要认证时附加 Bearer。服务没有 stdio 模式。使用宿主实际发现的工具，不能假设 MCP 注册名称或工具前缀。
+2. 宿主已有 A2A 编排能力时，按当前鉴权模式读取 `/.well-known/agent-card.json`，按其接口连接。优先协商 1.0；不要为接入服务擅自升级宿主。
 3. 仅有 HTTP 或终端能力时，直接使用 HTTP API。Node.js 22+ 可执行本技能自带的检查脚本，无需安装 npm 依赖：
 
    ```bash

@@ -179,7 +179,7 @@ docker run --rm --name echarts-agent \
 
 ## HTTP API
 
-除健康检查外，配置了服务 key 时所有入口都需要 `Authorization: Bearer <SERVICE_API_KEY>`。
+HTTP、MCP 和 A2A 使用同一鉴权规则：配置了 `SERVICE_API_KEY` 时，除健康检查外所有入口都需要 `Authorization: Bearer <SERVICE_API_KEY>`，即使 `ALLOW_ANONYMOUS=true`。无 key 时，必须显式设置 `ALLOW_ANONYMOUS=true` 才能匿名访问；两者都未配置则拒绝启动。OpenAPI 和两版 Agent Card 的安全声明随当前模式变化，匿名模式不声明 Bearer 要求。
 
 | 方法与路径 | 请求 | 响应 |
 | --- | --- | --- |
@@ -294,7 +294,7 @@ CHART_URL=http://127.0.0.1:3000 node examples/mcp-client.mjs
 
 ## 接入 A2A Agent
 
-A2A 默认关闭，需要服务 key。将以下配置加入服务环境后重启：
+A2A 默认关闭，开关独立于鉴权模式。需要 Bearer 认证时，将以下配置加入服务环境后重启：
 
 ```dotenv
 SERVICE_API_KEY=replace-with-a-random-service-key
@@ -302,9 +302,17 @@ A2A_ENABLED=true
 A2A_PUBLIC_URL=http://127.0.0.1:3000
 ```
 
+若服务采用显式匿名模式，可使用以下配置；同时清空或移除既有 `SERVICE_API_KEY`：
+
+```dotenv
+ALLOW_ANONYMOUS=true
+A2A_ENABLED=true
+A2A_PUBLIC_URL=http://127.0.0.1:3000
+```
+
 `A2A_PUBLIC_URL` 必须是调用方可访问的服务 origin，不带路径、查询参数或凭据。远程部署时替换本机地址。
 
-- Agent Card：`/.well-known/agent-card.json`，也需要 Bearer 认证。请求头 `A2A-Version: 1.0` 获取新版 Card；缺省或 `0.3` 保留旧版 Card。
+- Agent Card：`/.well-known/agent-card.json`，与 `/a2a` 沿用相同的全局鉴权模式。请求头 `A2A-Version: 1.0` 获取新版 Card；缺省或 `0.3` 保留旧版 Card。
 - JSON-RPC：`/a2a`；支持 **A2A 1.0**（规范修订 1.0.1）及 **0.3** 兼容协议。新版请求带 `A2A-Version: 1.0`。
 - 1.0 支持 `SendMessage`、`GetTask`、`CancelTask`；0.3 保留 `message/send`、`tasks/get`、`tasks/cancel`。
 - 输入为一个结构化 data part：`{operation:"render"|"chart"|"generate", request:对应HTTP请求体}`。1.0 JSON 消息使用 `role:"ROLE_USER"` 和 `parts:[{data:输入}]`。
@@ -314,9 +322,9 @@ A2A_PUBLIC_URL=http://127.0.0.1:3000
 CHART_URL=http://127.0.0.1:3000 node examples/a2a-client.mjs
 ```
 
-示例使用官方 `@a2a-js/sdk` 1.3.0 客户端，自动发送版本请求头；客户端环境需设置与服务端一致的 `SERVICE_API_KEY`，输出为 `chart-a2a.png`。SDK 用 `SendMessageRequest.fromJSON` 将 JSON 请求转换为内部类型，`sendMessage` 直接返回 Task，图片位于 `part.content.value`（`$case === "raw"`，类型为 `Buffer`），与上面的 JSON wire 表示不同。
+示例使用官方 `@a2a-js/sdk` 1.3.0 客户端，自动发送版本请求头；开启认证时，客户端环境需设置与服务端一致的 `SERVICE_API_KEY`，匿名模式可省略。输出为 `chart-a2a.png`。SDK 用 `SendMessageRequest.fromJSON` 将 JSON 请求转换为内部类型，`sendMessage` 直接返回 Task，图片位于 `part.content.value`（`$case === "raw"`，类型为 `Buffer`），与上面的 JSON wire 表示不同。
 
-1.0 设置 `configuration.returnImmediately=true` 可先拿任务 ID 再查询；默认等待任务结束。0.3 对应设置为 `configuration.blocking=false`。重复取消已取消的任务会返回其取消状态；已完成或失败的任务不可取消。两版均不存储消息历史，`historyLength` 仅支持省略或 0。任务完成后最多保留 10 分钟，内存最多 100 条/64 MiB，容量压力时提前淘汰，重启后丢失。不支持 `ListTasks`、流式、推送通知、续写或文件输入。同一个 key 的调用方共享任务访问权限，非空 `tenant` 会被拒绝。
+1.0 设置 `configuration.returnImmediately=true` 可先拿任务 ID 再查询；默认等待任务结束。0.3 对应设置为 `configuration.blocking=false`。重复取消已取消的任务会返回其取消状态；已完成或失败的任务不可取消。两版均不存储消息历史，`historyLength` 仅支持省略或 0。任务完成后最多保留 10 分钟，内存最多 100 条/64 MiB，容量压力时提前淘汰，重启后丢失。不支持 `ListTasks`、流式、推送通知、续写或文件输入。有 key 时，同一个 key 的调用方共享任务访问权限；匿名时，所有可访问实例的调用方共享任务范围，知道任务 ID 即可读取或取消任务。非空 `tenant` 会被拒绝。
 
 ## 配置参考
 
@@ -326,7 +334,7 @@ CHART_URL=http://127.0.0.1:3000 node examples/a2a-client.mjs
 | --- | --- |
 | `HOST` / `PORT` | `0.0.0.0` / `3000`；本机运行建议显式 `HOST=127.0.0.1` |
 | `SERVICE_API_KEY` | 无；服务与客户端共用的 Bearer key |
-| `ALLOW_ANONYMOUS` | 默认关闭；仅值 `true` 开启，无 key 时启动所需 |
+| `ALLOW_ANONYMOUS` | 默认关闭；无服务 key 时须为 `true`，允许 HTTP/MCP/A2A 匿名访问；有 key 时仍要求 Bearer |
 | `RENDER_WORKERS` | `2`，范围 1–4 |
 | `RENDER_QUEUE_LIMIT` | `8`，范围 0–32 |
 | `RENDER_TIMEOUT_MS` | `10000`，范围 100–30000，包含排队时间 |
@@ -335,7 +343,7 @@ CHART_URL=http://127.0.0.1:3000 node examples/a2a-client.mjs
 | `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` | 启用模型时均需配置 |
 | `LLM_TIMEOUT_MS` | `60000`，范围 100–60000 |
 | `LLM_LOG_LEVEL` | `info`；`debug/info/warn/error/off`，模型生成的脱敏诊断日志 |
-| `A2A_ENABLED` / `A2A_PUBLIC_URL` | 默认关闭；启用时必须配置服务 origin 和服务 key |
+| `A2A_ENABLED` / `A2A_PUBLIC_URL` | 默认关闭；启用时必须配置服务 origin，鉴权沿用全局模式 |
 
 兼容小写 `llm_provider`、`llm_base_url`、`llm_default_model`、`llm_api_key`；对应大写变量优先。AI 状态 `ready` 只表示配置完整，不表示供应商已通过在线探测。
 

@@ -179,7 +179,7 @@ Data requirements:
 
 ## HTTP API
 
-When a service key is configured, every endpoint except health checks requires `Authorization: Bearer <SERVICE_API_KEY>`.
+HTTP, MCP, and A2A share one authentication policy. When `SERVICE_API_KEY` is configured, every endpoint except health checks requires `Authorization: Bearer <SERVICE_API_KEY>`, even with `ALLOW_ANONYMOUS=true`. Without a key, explicitly set `ALLOW_ANONYMOUS=true` to allow anonymous access; otherwise startup is rejected. OpenAPI and both Agent Card versions reflect the current policy and declare no Bearer requirement in anonymous mode.
 
 | Method and path | Request | Response |
 | --- | --- | --- |
@@ -294,7 +294,7 @@ Set `SERVICE_API_KEY` in the client environment when authentication is enabled. 
 
 ## Connect an A2A agent
 
-A2A is disabled by default and requires a service key. Add these settings to the server environment and restart:
+A2A is disabled by default, independently of the authentication policy. To require Bearer authentication, add these settings to the server environment and restart:
 
 ```dotenv
 SERVICE_API_KEY=replace-with-a-random-service-key
@@ -302,9 +302,17 @@ A2A_ENABLED=true
 A2A_PUBLIC_URL=http://127.0.0.1:3000
 ```
 
+For explicit anonymous access, use the following settings and clear or remove any existing `SERVICE_API_KEY`:
+
+```dotenv
+ALLOW_ANONYMOUS=true
+A2A_ENABLED=true
+A2A_PUBLIC_URL=http://127.0.0.1:3000
+```
+
 `A2A_PUBLIC_URL` must be the service origin reachable by callers, without a path, query, or credentials. Replace the loopback address for remote deployments.
 
-- Agent Card: `/.well-known/agent-card.json`; Bearer authentication is required here too. Send `A2A-Version: 1.0` for the new Card; omitting the header or sending `0.3` preserves the legacy Card.
+- Agent Card: `/.well-known/agent-card.json`; it follows the same global authentication policy as `/a2a`. Send `A2A-Version: 1.0` for the new Card; omitting the header or sending `0.3` preserves the legacy Card.
 - JSON-RPC: `/a2a`; supports **A2A 1.0** (specification revision 1.0.1) with **0.3** compatibility. Send `A2A-Version: 1.0` for new requests.
 - 1.0 methods: `SendMessage`, `GetTask`, and `CancelTask`. The 0.3 methods remain `message/send`, `tasks/get`, and `tasks/cancel`.
 - Input: one structured data part containing `{operation:"render"|"chart"|"generate", request:corresponding HTTP body}`. A 1.0 JSON message uses `role:"ROLE_USER"` and `parts:[{data:input}]`.
@@ -314,9 +322,9 @@ A2A_PUBLIC_URL=http://127.0.0.1:3000
 CHART_URL=http://127.0.0.1:3000 node examples/a2a-client.mjs
 ```
 
-The example uses the official `@a2a-js/sdk` 1.3.0 client, which sends the version header automatically. Set the same `SERVICE_API_KEY` in the client environment. The output is `chart-a2a.png`. The SDK converts JSON requests to its internal types using `SendMessageRequest.fromJSON`; `sendMessage` returns the Task directly, and image bytes are in `part.content.value` (`$case === "raw"`, a `Buffer`). These SDK types differ from the JSON wire representation above.
+The example uses the official `@a2a-js/sdk` 1.3.0 client, which sends the version header automatically. When authentication is enabled, set the same `SERVICE_API_KEY` in the client environment; omit it for anonymous access. The output is `chart-a2a.png`. The SDK converts JSON requests to its internal types using `SendMessageRequest.fromJSON`; `sendMessage` returns the Task directly, and image bytes are in `part.content.value` (`$case === "raw"`, a `Buffer`). These SDK types differ from the JSON wire representation above.
 
-In 1.0, set `configuration.returnImmediately=true` to receive a task ID before completion and query it later; the default waits for completion. The 0.3 equivalent is `configuration.blocking=false`. Canceling an already canceled task returns its canceled state; completed or failed tasks cannot be canceled. Neither version stores message history; `historyLength` must be omitted or zero. Completed tasks are retained for at most 10 minutes, with limits of 100 tasks and 64 MiB in memory; capacity pressure may evict them sooner. Restarting loses all tasks. `ListTasks`, streaming, push notifications, continuation, and file inputs are unsupported. Callers sharing a key share access to tasks, and nonempty `tenant` values are rejected.
+In 1.0, set `configuration.returnImmediately=true` to receive a task ID before completion and query it later; the default waits for completion. The 0.3 equivalent is `configuration.blocking=false`. Canceling an already canceled task returns its canceled state; completed or failed tasks cannot be canceled. Neither version stores message history; `historyLength` must be omitted or zero. Completed tasks are retained for at most 10 minutes, with limits of 100 tasks and 64 MiB in memory; capacity pressure may evict them sooner. Restarting loses all tasks. `ListTasks`, streaming, push notifications, continuation, and file inputs are unsupported. With authentication enabled, callers sharing a key share access to tasks. In anonymous mode, all callers that can reach the instance share the task scope and can read or cancel a task if they know its ID. Nonempty `tenant` values are rejected.
 
 ## Configuration reference
 
@@ -326,7 +334,7 @@ See [.env.example](.env.example) for the template. `npm run dev` loads `.env.loc
 | --- | --- |
 | `HOST` / `PORT` | `0.0.0.0` / `3000`; explicitly use `HOST=127.0.0.1` for local runs |
 | `SERVICE_API_KEY` | Unset; shared Bearer key for server and clients |
-| `ALLOW_ANONYMOUS` | Off by default; only `true` enables it, required to start without a key |
+| `ALLOW_ANONYMOUS` | Off by default; must be `true` without a service key to allow anonymous HTTP/MCP/A2A access; a configured key still requires Bearer |
 | `RENDER_WORKERS` | `2`; range: 1–4 |
 | `RENDER_QUEUE_LIMIT` | `8`; range: 0–32 |
 | `RENDER_TIMEOUT_MS` | `10000`; range: 100–30000, including queue time |
@@ -335,7 +343,7 @@ See [.env.example](.env.example) for the template. `npm run dev` loads `.env.loc
 | `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` | All required when using a model |
 | `LLM_TIMEOUT_MS` | `60000`; range: 100–60000 |
 | `LLM_LOG_LEVEL` | `info`; `debug/info/warn/error/off` for sanitized generation diagnostics |
-| `A2A_ENABLED` / `A2A_PUBLIC_URL` | Disabled by default; enabling requires a service origin and service key |
+| `A2A_ENABLED` / `A2A_PUBLIC_URL` | Disabled by default; enabling requires a service origin and follows the global authentication policy |
 
 Lowercase aliases are supported: `llm_provider`, `llm_base_url`, `llm_default_model`, and `llm_api_key`. The corresponding uppercase variables take precedence. AI status `ready` means configuration is complete, not that provider connectivity has been tested.
 

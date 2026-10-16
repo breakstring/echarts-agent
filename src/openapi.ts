@@ -6,7 +6,7 @@ const error = z.object({ error: z.object({ code: z.string(), message: z.string()
 const generated = z.object({ requestId: z.string(), spec: specSchema, option: z.record(z.string(), z.unknown()), warnings: z.array(z.string()), artifact });
 const jsonResponse = (schema: object, description: string) => ({ description, content: { 'application/json': { schema } } });
 
-export function openApiDocument() {
+export function openApiDocument(requireAuth: boolean) {
   const schemas = Object.fromEntries(Object.entries({ RenderRequest: rawRequestSchema, ChartRequest: chartRequestSchema, GenerateRequest: generateRequestSchema, ChartPlan: planSchema, ChartSpec: specSchema }).map(([name, schema]) => [name, z.toJSONSchema(schema, { io: 'input' })]));
   const paths: Record<string, unknown> = {};
   for (const [path, name] of [['render', 'RenderRequest'], ['charts', 'ChartRequest'], ['generate', 'GenerateRequest']]) {
@@ -20,5 +20,5 @@ export function openApiDocument() {
   }
   paths['/v1/capabilities'] = { get: { responses: { '200': jsonResponse({ type: 'object' }, '图表类型、主题、资源限额与模型配置状态') } } };
   for (const name of ['live', 'ready']) paths[`/health/${name}`] = { get: { security: [], responses: { '200': jsonResponse({ type: 'object' }, '运行状态'), ...(name === 'ready' ? { '503': jsonResponse({ type: 'object' }, '渲染进程不可用') } : {}) } } };
-  return { openapi: '3.1.0', info: { title: 'ECharts Agent', version: '0.2.0' }, security: [{ bearerAuth: [] }], components: { schemas: { ...schemas, Artifact: z.toJSONSchema(artifact), GenerateResponse: z.toJSONSchema(generated), ErrorResponse: z.toJSONSchema(error) }, securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } }, paths };
+  return { openapi: '3.1.0', info: { title: 'ECharts Agent', version: '0.2.0' }, security: requireAuth ? [{ bearerAuth: [] }] : [], components: { schemas: { ...schemas, Artifact: z.toJSONSchema(artifact), GenerateResponse: z.toJSONSchema(generated), ErrorResponse: z.toJSONSchema(error) }, ...(requireAuth ? { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } } : {}) }, paths };
 }

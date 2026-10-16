@@ -12,6 +12,7 @@ import { openApiDocument } from './openapi.js';
 const metadataSchema = z.object({ requestId: z.string(), mimeType: z.string(), width: z.number(), height: z.number(), bytes: z.number() });
 export function createServer(service: ChartService, options: { apiKey?: string; allowAnonymous?: boolean; log?: boolean; a2aPublicUrl?: string } = {}) {
   if (!options.apiKey && !options.allowAnonymous) throw new Error('需要 SERVICE_API_KEY 或显式 ALLOW_ANONYMOUS=true');
+  const requireAuth = Boolean(options.apiKey);
   const app = Fastify({ bodyLimit: LIMITS.bodyBytes, logger: false, genReqId: () => randomUUID(), requestTimeout: 70_000, connectionTimeout: 75_000, forceCloseConnections: true, onProtoPoisoning: 'error', onConstructorPoisoning: 'error' });
   app.addHook('onRequest', async (request, reply) => {
     reply.header('x-request-id', request.id).header('x-content-type-options', 'nosniff').header('cache-control', 'no-store');
@@ -45,7 +46,7 @@ export function createServer(service: ChartService, options: { apiKey?: string; 
   app.post('/v1/render', async (request, reply) => binary(await service.raw(request.body, cancellation(request, reply)), reply));
   app.post('/v1/charts', async (request, reply) => binary(await service.chart(request.body, cancellation(request, reply)), reply));
   app.post('/v1/generate', async (request, reply) => ({ requestId: request.id, ...await service.generate(request.body, cancellation(request, reply), 'http') }));
-  app.get('/openapi.json', async () => openApiDocument());
+  app.get('/openapi.json', async () => openApiDocument(requireAuth));
   app.all('/mcp', async (request, reply) => {
     const signal = cancellation(request, reply);
     const mcp = new McpServer({ name: 'echarts-agent', version: '0.2.0' });
@@ -80,8 +81,7 @@ export function createServer(service: ChartService, options: { apiKey?: string; 
     catch { if (!reply.raw.headersSent) reply.raw.writeHead(500, { 'content-type': 'application/json' }); if (!reply.raw.writableEnded) reply.raw.end(JSON.stringify({ error: { code: 'MCP_FAILED', message: 'MCP 请求失败', requestId: request.id } })); }
   });
   if (options.a2aPublicUrl) {
-    if (!options.apiKey) throw new Error('A2A 需要 SERVICE_API_KEY');
-    registerA2A(app, service, options.a2aPublicUrl);
+    registerA2A(app, service, options.a2aPublicUrl, requireAuth);
   }
   app.addHook('onClose', async () => service.pool.close());
   return app;

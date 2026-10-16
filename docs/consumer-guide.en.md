@@ -26,7 +26,8 @@ The installed layout should be `skill-directory/echarts-agent-chart/SKILL.md`; d
 - Use a service address reachable from the **environment where the Agent actually runs**. For a remote container or cloud Agent, `127.0.0.1` points to that environment itself, not the user's computer.
 - The MCP address is `https://charts.example.com/mcp`; scripts use the service origin `CHART_URL=https://charts.example.com`. Replace the example domain with your deployment.
 - When authentication is required, provide `SERVICE_API_KEY` through the host's credential store or startup environment, with the same value as the server. Do not put the real value in skills, shared configuration, command arguments, or conversations; do not print the environment variable while troubleshooting.
-- Desktop hosts do not always inherit the terminal environment. Confirm that the variable exists in the process environment that starts the Agent; setting it in another terminal is usually ineffective. Omit authentication only for a trusted local anonymous service.
+- HTTP, MCP, and A2A share the server's authentication policy. A configured `SERVICE_API_KEY` requires Bearer for all three, even with `ALLOW_ANONYMOUS=true`. Without a key, explicit `ALLOW_ANONYMOUS=true` allows anonymous access; otherwise the server rejects startup. Health checks never require authentication. OpenAPI and both Agent Card versions declare the current security requirements.
+- Desktop hosts do not always inherit the terminal environment. Confirm that the variable exists in the process environment that starts the Agent; setting it in another terminal is usually ineffective. Omit authentication only when the deployer has explicitly enabled anonymous access.
 
 Skills provide workflows; they do not automatically install MCP/A2A protocol support. Prefer native MCP when the host supports it, and use A2A when an A2A orchestrator is already available. Use the script below only when the host has terminal/HTTP tools or when reliably saving images is necessary.
 
@@ -111,7 +112,7 @@ The script requires `CHART_URL` to be an origin and rejects credentials, query p
 
 ## Existing A2A orchestrator
 
-Ask the deployer to enable A2A and configure the correct `A2A_PUBLIC_URL` first; the consumer skills do not change the service deployment. Both card discovery and calls require Bearer authentication:
+Ask the deployer to set `A2A_ENABLED=true` and configure the correct `A2A_PUBLIC_URL` first. This switch is independent of authentication, and the consumer skills do not change the service deployment. With a service key, card discovery and calls both require Bearer; explicit anonymous mode allows both without it:
 
 1. `GET /.well-known/agent-card.json` with `A2A-Version: 1.0` and check the supported interfaces and operations.
 2. Send `SendMessage` to `/a2a`, again with the version header. The message must contain exactly one structured `data` part whose content is `{operation:"chart"|"render"|"generate", request:corresponding HTTP request body}`; do not send only natural language or upload a CSV.
@@ -120,7 +121,7 @@ Ask the deployer to enable A2A and configure the correct `A2A_PUBLIC_URL` first;
 
 See the chart skill's [A2A reference](../skills/echarts-agent-chart/references/a2a.md) for the complete message example, the 0.3 compatibility path, and status handling. Projects that already use an SDK can refer to the [official JS SDK client example](../examples/a2a-client.mjs); that example requires the repository dependencies and differs from the dependency-free HTTP script.
 
-A2A is disabled by default. Tasks are kept in memory, retained for at most 10 minutes after reaching a terminal state, and may be evicted earlier; a restart loses them. There is no task continuation, file input, streaming, or push notification. Callers using the same key share the same task access scope. The `skills` declared in the Agent Card describe service capabilities; the `SKILL.md` installed on the local machine provides operating guidance.
+A2A is disabled by default. Tasks are kept in memory, retained for at most 10 minutes after reaching a terminal state, and may be evicted earlier; a restart loses them. There is no task continuation, file input, streaming, or push notification. With authentication enabled, callers using the same key share the same task scope. In anonymous mode, all callers that can reach the instance share that scope and can read or cancel a task if they know its ID. The `skills` declared in the Agent Card describe service capabilities; the `SKILL.md` installed on the local machine provides operating guidance.
 
 ## Verification and troubleshooting
 

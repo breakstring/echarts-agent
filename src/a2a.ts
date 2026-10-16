@@ -92,13 +92,13 @@ class ChartExecutor implements AgentExecutor {
   }
 }
 
-export function registerA2A(app: FastifyInstance, service: ChartService, publicUrl: string): void {
+export function registerA2A(app: FastifyInstance, service: ChartService, publicUrl: string, requireAuth: boolean): void {
   const url = new URL(publicUrl);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('A2A_PUBLIC_URL 必须是无路径与凭据的服务 origin');
   const commonCard = { name: 'ECharts Agent', description: '生成受约束的 SVG/PNG 图表；任务内存保留10分钟，重启丢失', version: '0.2.0', capabilities: { streaming: false, pushNotifications: false }, defaultInputModes: ['application/json'], defaultOutputModes: ['image/svg+xml', 'image/png'], skills: [{ id: 'render', name: '图表渲染', description: '单个 data part: {operation:render|chart,request:HTTP请求体}', tags: ['chart', 'svg', 'png'] }, ...(service.aiStatus === 'ready' ? [{ id: 'generate', name: '智能图表', description: '单个 data part: {operation:generate,request:数据与意图}', tags: ['chart', 'llm'] }] : [])] };
   const supportedInterfaces = ['1.0', '0.3'].map(protocolVersion => ({ url: `${url.origin}/a2a`, protocolBinding: 'JSONRPC', protocolVersion }));
-  const card = AgentCard.fromJSON({ ...commonCard, supportedInterfaces, securitySchemes: { bearerAuth: { httpAuthSecurityScheme: { scheme: 'bearer' } } }, securityRequirements: [{ schemes: { bearerAuth: { list: [] } } }] });
-  const legacyCard = { ...commonCard, supportedInterfaces, protocolVersion: '0.3.0', url: `${url.origin}/a2a`, preferredTransport: 'JSONRPC', capabilities: { ...commonCard.capabilities, stateTransitionHistory: false }, securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } }, security: [{ bearerAuth: [] }] };
+  const card = AgentCard.fromJSON({ ...commonCard, supportedInterfaces, ...(requireAuth ? { securitySchemes: { bearerAuth: { httpAuthSecurityScheme: { scheme: 'bearer' } } }, securityRequirements: [{ schemes: { bearerAuth: { list: [] } } }] } : {}) });
+  const legacyCard = { ...commonCard, supportedInterfaces, protocolVersion: '0.3.0', url: `${url.origin}/a2a`, preferredTransport: 'JSONRPC', capabilities: { ...commonCard.capabilities, stateTransitionHistory: false }, ...(requireAuth ? { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } }, security: [{ bearerAuth: [] }] } : {}) };
   const store = new EphemeralTaskStore();
   const executor = new ChartExecutor(service);
   const handler = new DefaultRequestHandler(card, store, executor);
@@ -124,7 +124,7 @@ export function registerA2A(app: FastifyInstance, service: ChartService, publicU
     const schema = legacy ? (sending ? legacySendSchema : taskSchema) : (sending ? sendSchema : rpc.method === 'GetTask' ? getTaskSchema : cancelTaskSchema);
     const params = schema.safeParse(rpc.params);
     if (!params.success) return { jsonrpc: '2.0', id: rpc.id, error: { code: -32602, message: 'Invalid params: 单个结构化 data part，不支持续写、文件输入或推送' } };
-    const context = new ServerCallContext({ requestedVersion: version, user: { isAuthenticated: true, userName: 'service-key' } });
+    const context = new ServerCallContext({ requestedVersion: version, user: { isAuthenticated: requireAuth, userName: requireAuth ? 'service-key' : 'anonymous' } });
     if (sending && executor.pending.size + executor.active.size >= 4) return { jsonrpc: '2.0', id: rpc.id, error: { code: -32000, message: 'A2A busy' } };
     // 预留直到 execute 接管；阻塞请求与后台任务各只占一个并发名额。
     if (sending) executor.pending.add(context);

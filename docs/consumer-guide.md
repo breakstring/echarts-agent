@@ -26,7 +26,8 @@
 - 使用从 **Agent 实际执行环境**可访问的服务地址。远程容器或云端 Agent 的 `127.0.0.1` 指向它自身，不是用户电脑。
 - MCP 地址为 `https://charts.example.com/mcp`；脚本使用服务 origin `CHART_URL=https://charts.example.com`。示例域名必须换成自己的部署。
 - 需要认证时，通过宿主的凭据存储或启动环境提供 `SERVICE_API_KEY`，其值与服务端相同。不要把真实值写进技能、共享配置、命令参数或对话；也不要打印环境变量来排障。
-- 桌面宿主不一定继承终端环境。确认变量存在于启动 Agent 的进程环境；仅在另一个终端设置通常无效。受信任本机匿名服务才省略认证。
+- HTTP、MCP、A2A 共用服务端鉴权模式：有 `SERVICE_API_KEY` 时均要求 Bearer，即使 `ALLOW_ANONYMOUS=true`；无 key 且显式 `ALLOW_ANONYMOUS=true` 时均可匿名访问，否则服务拒绝启动。健康检查始终无需认证；OpenAPI 和两版 Agent Card 按当前模式声明安全要求。
+- 桌面宿主不一定继承终端环境。确认变量存在于启动 Agent 的进程环境；仅在另一个终端设置通常无效。仅对部署方已明确启用匿名的服务省略认证。
 
 技能提供工作流，不会自动安装 MCP/A2A 协议支持。优先选择已有的原生 MCP，已有 A2A 编排器时用 A2A；只有终端/HTTP 工具或需要可靠保存图片时，可使用下面的脚本。
 
@@ -111,7 +112,7 @@ node skills/echarts-agent-chart/scripts/chart-client.mjs chart skills/echarts-ag
 
 ## 已有 A2A 编排器
 
-请部署方先启用 A2A 并配置正确的 `A2A_PUBLIC_URL`；消费者技能不自行修改服务部署。发现卡片和调用都需要 Bearer：
+请部署方先设置 `A2A_ENABLED=true` 并配置正确的 `A2A_PUBLIC_URL`；此开关独立于鉴权模式，消费者技能不自行修改服务部署。有服务 key 时，发现卡片和调用都需要 Bearer；显式匿名模式下均可省略：
 
 1. `GET /.well-known/agent-card.json`，带 `A2A-Version: 1.0`，检查支持的接口与操作。
 2. 向 `/a2a` 发送 `SendMessage`，仍带版本头。消息只包含一个结构化 `data` part，内容为 `{operation:"chart"|"render"|"generate", request:对应HTTP请求体}`；不能只发一句自然语言或上传 CSV。
@@ -120,7 +121,7 @@ node skills/echarts-agent-chart/scripts/chart-client.mjs chart skills/echarts-ag
 
 完整消息样例、0.3 兼容路径及状态处理见画图技能内的 [A2A 参考](../skills/echarts-agent-chart/references/a2a.md)。已有 SDK 项目可参考 [官方 JS SDK 客户端示例](../examples/a2a-client.mjs)，该示例需仓库依赖，与无依赖 HTTP 脚本不同。
 
-A2A 默认关闭，任务只在内存保留，终态最多 10 分钟且可能提前淘汰，重启丢失。没有任务续写、文件输入、流式或推送通知；相同 key 的调用方共享任务访问范围。Agent Card 中的 `skills` 声明服务能力，安装到本机的 `SKILL.md` 提供操作指导。
+A2A 默认关闭，任务只在内存保留，终态最多 10 分钟且可能提前淘汰，重启丢失。没有任务续写、文件输入、流式或推送通知。有 key 时，相同 key 的调用方共享任务访问范围；匿名时，所有可访问实例的调用方共享任务范围，知道任务 ID 即可读取或取消任务。Agent Card 中的 `skills` 声明服务能力，安装到本机的 `SKILL.md` 提供操作指导。
 
 ## 验收与排障
 

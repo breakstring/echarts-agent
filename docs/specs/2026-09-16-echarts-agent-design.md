@@ -116,15 +116,17 @@ Node heap 不包含 Sharp native 内存，子进程不是完整安全沙箱。�
 
 ## MCP 与 A2A
 
-MCP `/mcp` 为无状态 Streamable HTTP，每个请求独立协议实例。基础工具 `get_chart_capabilities/render_echarts/render_chart`，AI配置完整时增加 `generate_chart`。使用实际 SDK 客户端验证了握手、列工具、SVG text、PNG image 与 structuredContent。每次请求独立校验 Bearer；会话ID不能替代认证。执行中的断连会取消下游；独立的notifications/cancelled在无状态请求之间不提供关联保证，需要按任务ID取消时使用A2A。没有持久会话或跨请求恢复。
+MCP `/mcp` 为无状态 Streamable HTTP，每个请求独立协议实例。基础工具 `get_chart_capabilities/render_echarts/render_chart`，AI配置完整时增加 `generate_chart`。使用实际 SDK 客户端验证了握手、列工具、SVG text、PNG image 与 structuredContent。启用认证时每次请求独立校验 Bearer；会话ID不能替代认证。执行中的断连会取消下游；独立的notifications/cancelled在无状态请求之间不提供关联保证，需要按任务ID取消时使用A2A。没有持久会话或跨请求恢复。
 
-A2A 默认关闭，必须配置 SERVICE_API_KEY、A2A_ENABLED=true、A2A_PUBLIC_URL（不含路径、query、凭据的 origin）。Agent Card 在 `/.well-known/agent-card.json`，JSON-RPC 在 `/a2a`，两者均需要 Bearer 认证。2026-10-16 升级合同支持 wire `1.0`（协议规范修订 `1.0.1`），并保留 wire `0.3` 兼容入口。请求头 `A2A-Version: 1.0` 选择新版；缺省或 `0.3` 返回旧版 Card 和协议语义。新版 Card 的 `supportedInterfaces` 宣告 wire `1.0`，旧版 Card 的 `protocolVersion` 为 `0.3.0`。
+A2A 默认关闭，启用时必须配置 `A2A_ENABLED=true`、`A2A_PUBLIC_URL`（不含路径、query、凭据的 origin），开关独立于全局鉴权模式。Agent Card 在 `/.well-known/agent-card.json`，JSON-RPC 在 `/a2a`，两者与 HTTP/MCP 使用相同鉴权规则。2026-10-16 升级合同支持 wire `1.0`（协议规范修订 `1.0.1`），并保留 wire `0.3` 兼容入口。请求头 `A2A-Version: 1.0` 选择新版；缺省或 `0.3` 返回旧版 Card 和协议语义。新版 Card 的 `supportedInterfaces` 宣告 wire `1.0`，旧版 Card 的 `protocolVersion` 为 `0.3.0`。
 
 新版支持 `SendMessage`、`GetTask`、`CancelTask`，旧版保留 `message/send`、`tasks/get`、`tasks/cancel`。两版只接受一个结构化 data part，内容为 `{operation:"render"|"chart"|"generate",request:对应HTTP请求体}`，task ID 由服务生成。1.0 JSON wire 的用户消息使用 `role:"ROLE_USER"`、`parts:[{data:输入}]`；完成结果包在 `result.task` 内，artifact part 用 `raw` 字段返回 base64，并带 `mediaType`、`filename`。SVG 同样编码为 base64；0.3 保留 `file.bytes`。官方 1.3.0 客户端使用 `SendMessageRequest.fromJSON` 转换请求，`sendMessage` 已解包返回 Task；SDK 内部 part 使用 `content:{$case:"raw",value:Buffer}`，不能把内部表示直接作为 JSON wire。
 
 1.0 的 `configuration.returnImmediately` 默认 false；true 时先返回工作中任务，可再查询/取消。0.3 对应 `configuration.blocking`，默认 true。重复取消已取消的任务会返回其取消状态，已完成或失败的任务返回不可取消错误。两版均不存储消息历史，`historyLength` 仅支持省略或 0。失败任务含安全错误码。任务与artifact在内存最多100条、序列化内容合计64MiB，完成后最多保留10分钟，空间紧张提前淘汰终态任务。重启即丢失，不支持 `ListTasks`、续写/恢复/文件输入/streaming/push。
 
-一个静态 key 表示共同信任域；持有同一 key 的调用方可读取该信任域的任务。新版拒绝非空 `tenant`，不提供租户身份隔离、OAuth 或公开多用户服务合同。健康检查匿名，其余所有协议入口都需要 key（显式本地匿名仅适用于 HTTP/MCP）。
+HTTP、MCP、A2A 统一鉴权：存在 `SERVICE_API_KEY` 时，除健康检查外均要求有效 Bearer，即使 `ALLOW_ANONYMOUS=true`；无 key 时必须显式 `ALLOW_ANONYMOUS=true`，否则拒绝启动。两版 Agent Card 与 OpenAPI 按此模式声明安全要求；匿名时不声明 Bearer 要求。A2A 的独立开关和 origin 校验仍生效。
+
+一个静态 key 表示共同信任域；持有同一 key 的调用方共享任务访问范围。匿名模式下所有可访问实例的调用方共享任务范围，知道任务 ID 即可读取或取消任务。新版拒绝非空 `tenant`，不提供租户身份隔离、OAuth 或公开多用户服务合同。
 
 ## 验收与暂缓
 

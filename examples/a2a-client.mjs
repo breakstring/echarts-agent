@@ -3,10 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { SendMessageRequest, TaskState } from '@a2a-js/sdk';
 import { ClientFactory, JsonRpcTransportFactory, DefaultAgentCardResolver } from '@a2a-js/sdk/client';
 const root = process.env.CHART_URL ?? 'http://127.0.0.1:3000';
-if (!process.env.SERVICE_API_KEY) throw new Error('需要 SERVICE_API_KEY');
 const fetchImpl = (url, init) => {
   const headers = new Headers(init?.headers);
-  headers.set('authorization', `Bearer ${process.env.SERVICE_API_KEY}`);
+  if (process.env.SERVICE_API_KEY) headers.set('authorization', `Bearer ${process.env.SERVICE_API_KEY}`);
   return fetch(url, { ...init, headers });
 };
 const client = await new ClientFactory({ transports: [new JsonRpcTransportFactory({ fetchImpl })], cardResolver: new DefaultAgentCardResolver({ fetchImpl }) }).createFromUrl(root);

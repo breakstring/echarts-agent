@@ -4,9 +4,9 @@
 
 ## 发现与发送（1.0）
 
-对用户确认的服务 origin 请求 `GET /.well-known/agent-card.json`，携带安全配置提供的 Bearer 和 `A2A-Version: 1.0`。读取 `supportedInterfaces` 中 `protocolBinding: "JSONRPC"`、`protocolVersion: "1.0"` 的接口 URL；通常是该 origin 的 `/a2a`。接口若指向未经确认的其他 origin，先确认目标，不自动转发凭据。
+对用户确认的服务 origin 请求 `GET /.well-known/agent-card.json`，携带 `A2A-Version: 1.0`，需要认证时附加安全配置提供的 Bearer。A2A 与 HTTP/MCP 共用鉴权模式：有服务 key 时均要求 Bearer，即使 `ALLOW_ANONYMOUS=true`；无 key 且显式 `ALLOW_ANONYMOUS=true` 时可匿名。Card 按当前模式声明安全要求。读取 `supportedInterfaces` 中 `protocolBinding: "JSONRPC"`、`protocolVersion: "1.0"` 的接口 URL；通常是该 origin 的 `/a2a`。接口若指向未经确认的其他 origin，先确认目标，不自动转发凭据。
 
-POST 接口时使用 `Content-Type: application/json`、相同 Bearer 和 `A2A-Version: 1.0`。示例是可渲染的最小请求，数据仅用于示范；每次新任务替换唯一的 JSON-RPC `id` 和 `messageId`：
+POST 接口时使用 `Content-Type: application/json`、`A2A-Version: 1.0`，需要认证时沿用相同 Bearer。示例是可渲染的最小请求，数据仅用于示范；每次新任务替换唯一的 JSON-RPC `id` 和 `messageId`：
 
 ```json
 {
@@ -76,4 +76,4 @@ POST 接口时使用 `Content-Type: application/json`、相同 Bearer 和 `A2A-V
 
 不支持任务列表、流式、推送通知、续写、文件输入、图片托管或消息历史；`historyLength` 只能省略或为 0。任务保存在服务内存，终态最多保留 10 分钟，容量压力可能提前淘汰，重启丢失。立即保存产物，别把任务 ID 当长期下载凭据。
 
-同一服务 key 的调用方共享任务访问权限，不支持通过非空 tenant 创建租户隔离。每次服务端生成最多会调用模型两次；A2A 只是任务传输，不改变数据外发与费用边界。
+有 key 时，同一服务 key 的调用方共享任务访问范围；匿名时，所有可访问实例的调用方共享任务范围，知道任务 ID 即可读取或取消任务。不支持通过非空 tenant 创建租户隔离。每次服务端生成最多会调用模型两次；A2A 只是任务传输，不改变数据外发与费用边界。

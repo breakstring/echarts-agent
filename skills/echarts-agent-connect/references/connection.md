@@ -11,7 +11,9 @@
 | `GET /v1/capabilities` | 类型、主题、格式、字体、限额、AI 状态 | 服务配置了 key 时需要 Bearer |
 | `GET /openapi.json` | 当前部署的 HTTP 请求 schema | 同上 |
 | `/mcp` | 无状态 Streamable HTTP MCP | 同上 |
-| `GET /.well-known/agent-card.json`、`POST /a2a` | 可选 A2A 发现与任务 | 必须 Bearer；服务可能未启用 A2A |
+| `GET /.well-known/agent-card.json`、`POST /a2a` | 可选 A2A 发现与任务 | 服务配置了 key 时需要 Bearer；服务可能未启用 A2A |
+
+HTTP、MCP、A2A 使用同一鉴权规则：有 `SERVICE_API_KEY` 时均要求 Bearer，即使 `ALLOW_ANONYMOUS=true`；无 key 且显式 `ALLOW_ANONYMOUS=true` 时均可匿名，否则服务拒绝启动。健康检查始终免认证。OpenAPI 和两版 Agent Card 按当前模式声明安全要求。A2A 仍需部署方独立启用并配置可达的 origin。
 
 认证头是 `Authorization: Bearer <安全配置中的值>`。不要把该占位符作为实际值发送。`SERVICE_API_KEY` 是 HTTP 辅助脚本读取的环境变量；MCP/A2A 宿主需要用自己的安全机制注入请求头，设置环境变量不一定会自动配置它们。
 
@@ -54,8 +56,8 @@
 
 ## A2A
 
-1. 获取 Agent Card 时携带 Bearer 和 `A2A-Version: 1.0`。读取 `supportedInterfaces`，确认 `JSONRPC`/`1.0` 接口及其 URL。应与用户确认的服务目标一致；不要把密钥自动发送到未经确认的其他 origin。
-2. 对该 `/a2a` 接口 POST JSON-RPC 2.0，仍发送相同的认证与版本头。`method` 为 `SendMessage`，`params` 可使用下面的完整样例：
+1. 获取 Agent Card 时携带 `A2A-Version: 1.0`，需要认证时附加 Bearer。读取 `supportedInterfaces`，确认 `JSONRPC`/`1.0` 接口及其 URL。应与用户确认的服务目标一致；不要把密钥自动发送到未经确认的其他 origin。
+2. 对该 `/a2a` 接口 POST JSON-RPC 2.0，沿用相同的鉴权模式与版本头。`method` 为 `SendMessage`，`params` 可使用下面的完整样例：
 
    ```json
    {
@@ -81,7 +83,7 @@
 
 服务也兼容 0.3：省略版本头或用 `A2A-Version: 0.3`；Card 为旧结构，方法是 `message/send`、`tasks/get`、`tasks/cancel`。消息用 `kind: "message"`、`role: "user"`、`parts: [{"kind":"data","data":输入}]`；异步设置 `configuration.blocking: false`，默认等待结束；任务直接在 `result`，完成状态为 `completed`，图像是 `parts[].file.bytes` base64。不要混用两套方法、消息结构或版本头。
 
-两版都只接受一个结构化 data part：`{operation:"chart"|"render"|"generate", request:对应HTTP请求体}`。不支持自然语言 text part、文件上传、续写旧任务、任务列表、流式、推送通知或图片托管。`historyLength` 只能省略或为 0。终态任务最多保留 10 分钟，容量压力可提前淘汰，重启丢失；拿到图片后立即保存。同一服务 key 的调用方共享任务访问权限，不是独立租户。
+两版都只接受一个结构化 data part：`{operation:"chart"|"render"|"generate", request:对应HTTP请求体}`。不支持自然语言 text part、文件上传、续写旧任务、任务列表、流式、推送通知或图片托管。`historyLength` 只能省略或为 0。终态任务最多保留 10 分钟，容量压力可提前淘汰，重启丢失；拿到图片后立即保存。有 key 时，同一服务 key 的调用方共享任务访问范围；匿名时，所有可访问实例的调用方共享任务范围，知道任务 ID 即可读取或取消任务。两种模式都不提供租户隔离。
 
 ## 有边界地排查
 
