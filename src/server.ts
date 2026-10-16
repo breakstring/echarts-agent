@@ -49,7 +49,7 @@ export function createServer(service: ChartService, options: { apiKey?: string; 
   app.all('/mcp', async (request, reply) => {
     const signal = cancellation(request, reply);
     const mcp = new McpServer({ name: 'echarts-agent', version: '0.1.0' });
-    mcp.registerTool('get_chart_capabilities', { description: '查询支持的图表、主题和限额', inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: JSON.stringify(service.capabilities()) }] }));
+    mcp.registerTool('get_chart_capabilities', { description: '首次画图或部署配置变化后查询支持的图表类型、主题、输出格式、资源限额和模型配置状态。ai.status=ready 仅表示配置完整，不代表模型在线可用；请结合工具列表判断 generate_chart 是否提供。确定性渲染无需服务端模型。', inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: JSON.stringify(service.capabilities()) }] }));
     const call = async (action: () => Promise<Artifact>) => {
       try {
         const artifact = await action();
@@ -59,9 +59,9 @@ export function createServer(service: ChartService, options: { apiKey?: string; 
         return result;
       } catch (error) { const safe = safeError(error); return { isError: true, content: [{ type: 'text' as const, text: JSON.stringify({ error: { code: safe.code, message: safe.message, requestId: request.id } }) }] }; }
     };
-    mcp.registerTool('render_echarts', { description: '安全 ECharts JSON option 生成 SVG 或 PNG', inputSchema: rawRequestSchema, outputSchema: metadataSchema }, async input => call(() => service.raw(input, signal)));
-    mcp.registerTool('render_chart', { description: 'ChartSpec 数据与字段映射生成 SVG 或 PNG', inputSchema: chartRequestSchema, outputSchema: metadataSchema }, async input => call(() => service.chart(input, signal)));
-    if (service.aiStatus === 'ready') mcp.registerTool('generate_chart', { description: '根据结构化数据和意图设计图表，需要服务已配置模型', inputSchema: generateRequestSchema, outputSchema: metadataSchema.extend({ spec: z.unknown(), option: z.unknown(), warnings: z.array(z.string()) }) }, async input => {
+    mcp.registerTool('render_echarts', { description: '已有 ECharts JSON option 或需要精细布局时使用；普通结构化数据优先 render_chart。无需模型，仅支持能力列表中的静态图表；禁止函数、脚本、外部资源、dataset、graphic、地图、GL 和交互组件。PNG 返回 image，SVG 返回 text，structuredContent 为元数据；无下载 URL 或本地文件。修改后需提交完整 option 重绘。', inputSchema: rawRequestSchema, outputSchema: metadataSchema }, async input => call(() => service.raw(input, signal)));
+    mcp.registerTool('render_chart', { description: '结构化数据画图的首选：由当前 Agent 选择图表类型和字段映射，提交完整 ChartSpec，无需服务端模型。先按用户口径整理数据；服务不解析 CSV/Excel，也不聚合、排序或补点。PNG 返回 image，SVG 返回 text，structuredContent 为元数据；客户端负责保存或展示，不提供下载 URL。修改图表时保留数据并提交更新后的完整请求，无图表会话或编辑 ID。', inputSchema: chartRequestSchema, outputSchema: metadataSchema }, async input => call(() => service.chart(input, signal)));
+    if (service.aiStatus === 'ready') mcp.registerTool('generate_chart', { description: '需要将选图和字段映射委托给服务端模型时使用，只有模型配置完整时提供。会将意图、字段类型、行数及前 5 行有界样例发送给配置的模型供应商；服务不聚合或补造数据。当前 Agent 能生成 ChartSpec 时优先 render_chart。PNG 返回 image，SVG 返回 text；structuredContent 含元数据、最终 spec/option/warnings，需复核并由客户端保存图片，无下载 URL。', inputSchema: generateRequestSchema, outputSchema: metadataSchema.extend({ spec: z.unknown(), option: z.unknown(), warnings: z.array(z.string()) }) }, async input => {
       let generation: Awaited<ReturnType<ChartService['generate']>> | undefined;
       const result = await call(async () => { generation = await service.generate(input, signal); return generation.artifact; });
       if (generation && 'structuredContent' in result) {

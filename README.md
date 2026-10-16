@@ -6,6 +6,8 @@
 
 适合为 AI Agent、报告系统和后端应用生成图表。基础渲染无需模型、浏览器或数据库；图片直接返回给调用方，不需要配置对象存储。
 
+**已经部署，想在自己的 Agent 中画图？** 直接使用下面的[技能安装与使用话术](#在你的-agent-中使用技能)。需要手动配置时，参阅[消费者接入指南](docs/consumer-guide.md)。
+
 ## 选择一种输入方式
 
 | 你已有的内容 | 使用方式 | 是否需要模型 |
@@ -15,6 +17,35 @@
 | 数据和一句图表需求 | 自然语言生成：模型选择类型和字段映射 | 是 |
 
 模型不生成业务数据。程序会把原始数据绑定到图表计划中；数据聚合、补全和清洗应由调用方提前完成。
+
+## 在你的 Agent 中使用技能
+
+仓库提供两个面向消费者的技能，可安装到支持 Agent Skills 的 Codex、Claude Code 等宿主：
+
+| 技能 | 用途 |
+| --- | --- |
+| [echarts-agent-connect](skills/echarts-agent-connect/SKILL.md) | 连接已部署的服务，检查认证、可用能力并生成样例图 |
+| [echarts-agent-chart](skills/echarts-agent-chart/SKILL.md) | 整理数据、选择图表、保存 SVG/PNG，并按要求修改 |
+
+**安装并连接：** 将下面的话复制给你的 Agent，把 `https://charts.example.com` 替换为从该 Agent 环境可访问的服务地址：
+
+```text
+请从 https://github.com/breakstring/echarts-agent/tree/main/skills 分别安装 echarts-agent-chart 和 echarts-agent-connect 技能。
+请按当前 Agent 的技能安装方式安装两个完整目录，包含其中的脚本、参考资料和样例。
+然后使用 echarts-agent-connect 技能，连接我已部署的 ECharts Agent 服务：https://charts.example.com。
+优先使用当前宿主支持的 MCP；已有 A2A 或仅有 HTTP 能力时，按技能选择对应方式。复用已安全配置的认证；如尚未配置，请指导我在宿主密钥设置或本地环境中配置，不要让我把密钥粘贴到对话。
+查询服务能力，并用合成数据生成一张样例 PNG，确认连接和画图成功。
+```
+
+**开始画图：** 连接成功后，把数据文件交给 Agent，例如：
+
+```text
+请使用 echarts-agent-chart 技能，把这份 CSV 按月份汇总销售额，保留原始金额单位，生成一张报告用柱状图，保存为 monthly-sales.png，并保留可复用的请求文件。
+```
+
+后续可以直接说：“把刚才的图改成横向，保留数据和单位，另存为 monthly-sales-horizontal.png。”普通制图由当前 Agent 选图，服务负责渲染，无需启用服务端 LLM。
+
+技能提供使用指导；宿主仍需具备相应的网络调用与图片保存能力。安装后按宿主要求刷新技能或开启新会话。手动安装目录、Codex/Claude Code 配置以及 MCP/A2A/HTTP 的详细步骤见[消费者接入指南](docs/consumer-guide.md)。
 
 ## 快速开始
 
@@ -240,12 +271,14 @@ node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.rea
 
 | 工具 | 功能 |
 | --- | --- |
-| `get_chart_capabilities` | 查询支持范围 |
-| `render_chart` | 从 ChartSpec 生成图片 |
-| `render_echarts` | 从 JSON option 生成图片 |
-| `generate_chart` | 从数据与意图生成图片，仅模型配置完整时提供 |
+| `get_chart_capabilities` | 首次使用时查询类型、格式、主题、限额和模型配置状态 |
+| `render_chart` | 普通画图首选；当前 Agent 生成 ChartSpec，服务无需模型 |
+| `render_echarts` | 已有 JSON option 或精细布局，遵守静态配置限制 |
+| `generate_chart` | 将选图委托给服务端模型，仅模型配置完整时提供 |
 
 工具参数与对应 HTTP 请求体相同。PNG 返回 MCP `image` 内容，SVG 返回 `text`；元数据在 `structuredContent` 中。生成工具还返回最终 spec/option/warnings。
+
+服务不提供下载 URL 或图表编辑 ID；客户端负责保存/展示图片，修改时提交更新后的完整请求。需要 CSV/表格整理、选图和迭代指导时安装[画图技能](skills/echarts-agent-chart/SKILL.md)；工具描述和参数说明也提供基本约束，无需安装技能即可调用。接入与排障见[连接技能](skills/echarts-agent-connect/SKILL.md)。
 
 运行仓库内的客户端示例：
 
@@ -325,7 +358,7 @@ npm run typecheck
 npm test
 ```
 
-当前已通过 29 组自动化测试，并验证了真实 MCP/A2A 客户端、百炼请求、Linux ARM64 与 AMD64 仿真容器。可选实测命令：
+自动化测试覆盖输入合同、渲染、HTTP/MCP/A2A 和消费者客户端；历史真实模型与双架构容器验收见[完成证据](docs/project/progress-log.md)，各次验证边界以对应记录为准。可选实测命令：
 
 ```bash
 npm run smoke:live  # 会向 .env.local 配置的模型发送请求

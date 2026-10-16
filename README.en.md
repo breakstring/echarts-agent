@@ -6,6 +6,8 @@ Turn structured data into chart images you can save immediately. ECharts Agent i
 
 Use it with AI agents, report generators, and backend applications. Basic rendering needs no model, browser, or database. Images are returned directly to the caller; object storage is not required.
 
+**Already deployed and want to draw charts from your own agent?** Use the [copyable skill prompts below](#use-skills-in-your-agent). For manual configuration, see the [consumer guide](docs/consumer-guide.en.md).
+
 ## Choose an input method
 
 | What you have | Input method | Model required? |
@@ -15,6 +17,35 @@ Use it with AI agents, report generators, and backend applications. Basic render
 | Data and a description of the chart | Natural-language generation: let the model choose the type and field mappings | Yes |
 
 The model does not generate business data. The service binds the original data to the chart plan. Perform aggregation, completion, and cleaning before submitting your data.
+
+## Use skills in your agent
+
+The repository includes two consumer skills for hosts that support Agent Skills, such as Codex and Claude Code:
+
+| Skill | Purpose |
+| --- | --- |
+| [echarts-agent-connect](skills/echarts-agent-connect/SKILL.md) | Connect to a deployed service, check authentication and capabilities, and generate a sample chart |
+| [echarts-agent-chart](skills/echarts-agent-chart/SKILL.md) | Prepare data, choose charts, save SVG/PNG images, and revise them on request |
+
+**Install and connect:** Copy this prompt to your agent, replacing `https://charts.example.com` with your service address as reachable from the agent's environment:
+
+```text
+Please install the echarts-agent-chart and echarts-agent-connect skills from https://github.com/breakstring/echarts-agent/tree/main/skills.
+Use this agent host's skill installation method and install both complete directories, including their scripts, references, and examples.
+Then use the echarts-agent-connect skill to connect to my deployed ECharts Agent service at https://charts.example.com.
+Prefer MCP when this host supports it; if A2A is already available or only HTTP is supported, follow the skill's corresponding path. Reuse securely configured authentication. If credentials are missing, guide me to configure them through the host's secret settings or local environment; do not ask me to paste secrets into chat.
+Query the service capabilities and generate a sample PNG using synthetic data to verify both the connection and chart rendering.
+```
+
+**Create a chart:** Once connected, give your agent a data file and a request such as:
+
+```text
+Use the echarts-agent-chart skill to aggregate sales in this CSV by month, preserve the original currency unit, and create a report-ready bar chart. Save it as monthly-sales.png and keep the reusable request file.
+```
+
+For a revision, say: “Make the previous chart horizontal, keep the data and units, and save it separately as monthly-sales-horizontal.png.” For ordinary charting, your agent chooses the chart and the service renders it; no server-side LLM is required.
+
+Skills provide guidance; the host still needs the corresponding network access and image-saving capabilities. Refresh skills or start a new session as required by your host. See the [consumer guide](docs/consumer-guide.en.md) for manual installation paths, Codex/Claude Code configuration, and detailed MCP/A2A/HTTP instructions.
 
 ## Quick start
 
@@ -240,12 +271,14 @@ Endpoint: `http://127.0.0.1:3000/mcp`, using **Streamable HTTP**. Enter this URL
 
 | Tool | Purpose |
 | --- | --- |
-| `get_chart_capabilities` | Query supported capabilities |
-| `render_chart` | Render a ChartSpec |
-| `render_echarts` | Render a JSON option |
-| `generate_chart` | Generate from data and intent; available only with complete model configuration |
+| `get_chart_capabilities` | Discover types, formats, themes, limits, and model configuration status before first use |
+| `render_chart` | Default for structured data; the calling agent creates a ChartSpec, with no server-side model required |
+| `render_echarts` | Render an existing JSON option or fine-tune layout within the static option constraints |
+| `generate_chart` | Delegate chart planning to the server-side model; available only with complete model configuration |
 
 Tool arguments match the corresponding HTTP request bodies. PNG is returned as MCP `image` content and SVG as `text`. Metadata is in `structuredContent`; the generation tool also includes the final spec/option/warnings.
+
+The service returns neither download URLs nor chart editing IDs. Clients save or display the image and submit a complete updated request for revisions. Install the [chart skill](skills/echarts-agent-chart/SKILL.md) for data preparation, chart selection, and iteration, or the [connect skill](skills/echarts-agent-connect/SKILL.md) for connection checks. Basic constraints are also included in tool and parameter descriptions, so skills are optional for API use. See the [consumer guide](docs/consumer-guide.en.md) for installation and client configuration.
 
 Run the included client:
 
@@ -325,7 +358,7 @@ npm run typecheck
 npm test
 ```
 
-The project has passed 29 automated test groups, with real MCP/A2A clients, DashScope requests, Linux ARM64 containers, and emulated AMD64 containers verified. Optional live checks:
+Automated tests cover input contracts, rendering, HTTP/MCP/A2A, and consumer clients. Historical live-model and dual-architecture container checks are recorded in the [completion log](docs/project/progress-log.md); each record states its verification scope. Optional live checks:
 
 ```bash
 npm run smoke:live  # Sends requests to the model configured in .env.local

@@ -1,0 +1,15 @@
+{
+  "spec": {
+    "type": "bar",
+    "title": "月度数量（合成数据）",
+    "data": [
+      {"month": "2026-01", "count": 12},
+      {"month": "2026-02", "count": 18},
+      {"month": "2026-03", "count": 15}
+    ],
+    "encoding": {"x": "month", "y": ["count"]},
+    "labels": {"count": "数量（件）"}
+  },
+  "style": {"theme": "report", "fontSize": 16},
+  "output": {"format": "png", "width": 1200, "height": 720, "pixelRatio": 2}
+}
