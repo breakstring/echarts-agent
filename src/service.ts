@@ -9,7 +9,7 @@ export type Planner = (request: z.infer<typeof generateRequestSchema>, feedback:
 export class ChartService {
   private activeGenerations = 0;
   constructor(public pool: RenderPool, private planner?: Planner, public aiStatus: 'disabled' | 'ready' | 'misconfigured' = planner ? 'ready' : 'disabled', private aiTimeoutMs = 60_000) {}
-  capabilities() { return { version: '0.1.0', chartTypes, themes: ['light', 'dark', 'report'], formats: ['svg', 'png'], fonts: ['Noto Sans CJK SC'], limits: LIMITS, ai: { status: this.aiStatus, maxCalls: 2, timeoutMs: this.aiTimeoutMs }, mcp: { transport: 'streamable-http', stateless: true, protocolVersion: '2025-11-25' } }; }
+  capabilities() { return { version: '0.2.0', chartTypes, themes: ['light', 'dark', 'report'], formats: ['svg', 'png'], fonts: ['Noto Sans CJK SC'], limits: LIMITS, ai: { status: this.aiStatus, maxCalls: 2, timeoutMs: this.aiTimeoutMs }, mcp: { transport: 'streamable-http', stateless: true, protocolVersion: '2025-11-25' } }; }
   async raw(input: unknown, signal?: AbortSignal): Promise<Artifact> {
     inspectJson(input);
     const request = rawRequestSchema.parse(input);

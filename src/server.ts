@@ -48,7 +48,7 @@ export function createServer(service: ChartService, options: { apiKey?: string; 
   app.get('/openapi.json', async () => openApiDocument());
   app.all('/mcp', async (request, reply) => {
     const signal = cancellation(request, reply);
-    const mcp = new McpServer({ name: 'echarts-agent', version: '0.1.0' });
+    const mcp = new McpServer({ name: 'echarts-agent', version: '0.2.0' });
     mcp.registerTool('get_chart_capabilities', { description: '首次画图或部署配置变化后查询支持的图表类型、主题、输出格式、资源限额和模型配置状态。ai.status=ready 仅表示配置完整，不代表模型在线可用；请结合工具列表判断 generate_chart 是否提供。确定性渲染无需服务端模型。', inputSchema: z.object({}) }, async () => ({ content: [{ type: 'text', text: JSON.stringify(service.capabilities()) }] }));
     const call = async (action: () => Promise<Artifact>) => {
       try {

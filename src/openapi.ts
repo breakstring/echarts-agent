@@ -20,5 +20,5 @@ export function openApiDocument() {
   }
   paths['/v1/capabilities'] = { get: { responses: { '200': jsonResponse({ type: 'object' }, '图表类型、主题、资源限额与模型配置状态') } } };
   for (const name of ['live', 'ready']) paths[`/health/${name}`] = { get: { security: [], responses: { '200': jsonResponse({ type: 'object' }, '运行状态'), ...(name === 'ready' ? { '503': jsonResponse({ type: 'object' }, '渲染进程不可用') } : {}) } } };
-  return { openapi: '3.1.0', info: { title: 'ECharts Agent', version: '0.1.0' }, security: [{ bearerAuth: [] }], components: { schemas: { ...schemas, Artifact: z.toJSONSchema(artifact), GenerateResponse: z.toJSONSchema(generated), ErrorResponse: z.toJSONSchema(error) }, securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } }, paths };
+  return { openapi: '3.1.0', info: { title: 'ECharts Agent', version: '0.2.0' }, security: [{ bearerAuth: [] }], components: { schemas: { ...schemas, Artifact: z.toJSONSchema(artifact), GenerateResponse: z.toJSONSchema(generated), ErrorResponse: z.toJSONSchema(error) }, securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } } }, paths };
 }

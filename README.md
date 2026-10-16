@@ -82,13 +82,13 @@ curl --fail-with-body http://127.0.0.1:3000/health/ready
 正式版镜像地址：`ghcr.io/breakstring/echarts-agent`，支持 Linux AMD64 和 ARM64。镜像设为 Public 后无需登录即可拉取：
 
 ```bash
-docker pull ghcr.io/breakstring/echarts-agent:0.1.0
+docker pull ghcr.io/breakstring/echarts-agent:0.2.0
 docker run --rm --name echarts-agent \
   -p 127.0.0.1:3000:3000 \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --memory 768m --cpus 2 --pids-limit 128 \
   -e ALLOW_ANONYMOUS=true -e LLM_ENABLED=false \
-  ghcr.io/breakstring/echarts-agent:0.1.0
+  ghcr.io/breakstring/echarts-agent:0.2.0
 ```
 
 `latest` 指向最近一次发布的正式版；需要可复现部署时使用版本标签或 digest。首次发布的镜像可见性与代码仓库独立；若拉取提示需要认证，请维护者按[发布说明](docs/container-release.md)将 Package 设为 Public。
@@ -109,7 +109,7 @@ services:
 
 ```bash
 chmod 600 compose.override.yaml
-ECHARTS_AGENT_IMAGE=ghcr.io/breakstring/echarts-agent:0.1.0 docker compose up -d --no-build --wait
+ECHARTS_AGENT_IMAGE=ghcr.io/breakstring/echarts-agent:0.2.0 docker compose up -d --no-build --wait
 ```
 
 模型环境变量也可写入 override 的 `environment`，无需另行维护 `.env.local`；此 Compose 不读取该文件。环境值中的字面 `$` 应写为 `$$`，避免 Compose 插值。内网部署可在私有 override 中配置共享网络；如显式启用匿名访问，需同时清空 `SERVICE_API_KEY`。服务器、网络和 Traefik 设置均保留在私有 override 中。

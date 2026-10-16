@@ -82,13 +82,13 @@ curl --fail-with-body http://127.0.0.1:3000/health/ready
 Release image: `ghcr.io/breakstring/echarts-agent`, supporting Linux AMD64 and ARM64. Once the package is Public, no login is required:
 
 ```bash
-docker pull ghcr.io/breakstring/echarts-agent:0.1.0
+docker pull ghcr.io/breakstring/echarts-agent:0.2.0
 docker run --rm --name echarts-agent \
   -p 127.0.0.1:3000:3000 \
   --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --memory 768m --cpus 2 --pids-limit 128 \
   -e ALLOW_ANONYMOUS=true -e LLM_ENABLED=false \
-  ghcr.io/breakstring/echarts-agent:0.1.0
+  ghcr.io/breakstring/echarts-agent:0.2.0
 ```
 
 `latest` points to the most recently published stable release. Use a version tag or digest for reproducible deployments. Package visibility is separate from repository visibility. If pulling requires authentication after the first publish, the maintainer should make the package Public using the [release guide](docs/container-release.md).
@@ -109,7 +109,7 @@ services:
 
 ```bash
 chmod 600 compose.override.yaml
-ECHARTS_AGENT_IMAGE=ghcr.io/breakstring/echarts-agent:0.1.0 docker compose up -d --no-build --wait
+ECHARTS_AGENT_IMAGE=ghcr.io/breakstring/echarts-agent:0.2.0 docker compose up -d --no-build --wait
 ```
 
 Model environment variables can also go in the override's `environment`; this Compose configuration does not read `.env.local`. Escape literal `$` characters as `$$` to prevent Compose interpolation. For internal deployments, configure a shared network in the private override. Explicit anonymous access also requires clearing `SERVICE_API_KEY`. Keep server, network, and Traefik settings in the private override.

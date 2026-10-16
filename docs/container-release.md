@@ -18,8 +18,8 @@
 2. 确认该提交应成为正式版，然后打匹配标签并推送，例如：
 
 ```bash
-git tag -a v0.1.0 -m '发布 0.1.0'
-git push origin v0.1.0
+git tag -a v0.2.0 -m '发布 0.2.0'
+git push origin v0.2.0
 ```
 
 3. 在仓库 Actions 页面查看 `CI and container release` 的标签运行，确认两个 Validate job 和 Publish job 都成功。
@@ -37,7 +37,7 @@ GitHub 源码仓库公开不代表 Package 自动公开。首次镜像推送成�
 
 ```bash
 auth_dir=$(mktemp -d)
-DOCKER_CONFIG="$auth_dir" docker pull ghcr.io/breakstring/echarts-agent:0.1.0
+DOCKER_CONFIG="$auth_dir" docker pull ghcr.io/breakstring/echarts-agent:0.2.0
 rmdir "$auth_dir"
 ```
 
