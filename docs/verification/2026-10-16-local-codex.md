@@ -25,9 +25,9 @@ LLM 凭据没有写入镜像、技能或 Codex 的 MCP 配置。私有 header he
 本机管理命令（在本次部署的用户账号下执行）：
 
 ```bash
-docker compose -f ~/.config/echarts-agent/local/compose.yaml ps
-docker compose -f ~/.config/echarts-agent/local/compose.yaml stop
-docker compose -f ~/.config/echarts-agent/local/compose.yaml up -d --wait
+docker compose -p echarts-agent-local -f ~/.config/echarts-agent/local/compose.yaml ps
+docker compose -p echarts-agent-local -f ~/.config/echarts-agent/local/compose.yaml stop
+docker compose -p echarts-agent-local -f ~/.config/echarts-agent/local/compose.yaml up -d --wait
 ```
 
 ## 当前 Codex 桌面原生 MCP
