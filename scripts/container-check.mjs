@@ -15,15 +15,22 @@ console.log(JSON.stringify({extendedCharts:'passed',types:Object.keys(extendedSa
 const client=new Client({name:'container-smoke',version:'1'});await client.connect(new StreamableHTTPClientTransport(new URL(`${root}/mcp`),{requestInit:{headers}}));
 try{const r=await client.callTool({name:'render_chart',arguments:{spec,output:{format:'png'}}});assert.equal(r.content[0].type,'image');assert.equal((await sharp(Buffer.from(r.content[0].data,'base64')).metadata()).width,960);}finally{await client.close();}
 if(process.env.A2A_ENABLED==='true'){
- const {ClientFactory,JsonRpcTransportFactory,DefaultAgentCardResolver}=await import('@a2a-js/sdk-v0_3/client');
- const fetchImpl=(url,init)=>fetch(url,{...init,headers:{...init?.headers,authorization:headers.authorization}});
- const a2a=await new ClientFactory({transports:[new JsonRpcTransportFactory({fetchImpl})],cardResolver:new DefaultAgentCardResolver({fetchImpl})}).createFromUrl(root);
+ const {SendMessageRequest,GetTaskRequest,TaskState}=await import('@a2a-js/sdk');
+ const {ClientFactory,JsonRpcTransportFactory,DefaultAgentCardResolver}=await import('@a2a-js/sdk/client');
+ const fetchImpl=(url,init)=>{const requestHeaders=new Headers(init?.headers);requestHeaders.set('authorization',headers.authorization);return fetch(url,{...init,headers:requestHeaders});};
+ const cardResolver=new DefaultAgentCardResolver({fetchImpl});
+ const card=await cardResolver.resolve(root);
+ assert.ok(card.supportedInterfaces.some(iface=>iface.protocolBinding==='JSONRPC'&&iface.protocolVersion==='1.0'&&iface.url===`${root}/a2a`));
+ const a2a=await new ClientFactory({transports:[new JsonRpcTransportFactory({fetchImpl})],cardResolver}).createFromAgentCard(card);
+ assert.equal(a2a.protocolVersion,'1.0');
+ const legacyCardResponse=await fetch(`${root}/.well-known/agent-card.json`,{headers});assert.equal(legacyCardResponse.status,200);
+ const legacyCard=await legacyCardResponse.json();assert.equal(legacyCard.protocolVersion,'0.3.0');
  const started=performance.now();
  const input=process.env.SMOKE_LIVE==='true'?{operation:'generate',request:{data:extendedSamples.sankey.data,intent:'用桑基图展示资源流向',output:{format:'png'}}}:{operation:'chart',request:{spec:extendedSamples.sankey,output:{format:'png'}}};
- const task=await a2a.sendMessage({message:{kind:'message',messageId:crypto.randomUUID(),role:'user',parts:[{kind:'data',data:input}]}});
- assert.equal(task.status.state,'completed');assert.equal((await sharp(Buffer.from(task.artifacts[0].parts[0].file.bytes,'base64')).metadata()).width,960);
- assert.equal((await a2a.getTask({id:task.id})).status.state,'completed');
- console.log(JSON.stringify({a2a:'passed',protocol:'0.3.0',live:process.env.SMOKE_LIVE==='true',durationMs:Math.round(performance.now()-started)}));
+ const task=await a2a.sendMessage(SendMessageRequest.fromJSON({message:{messageId:crypto.randomUUID(),role:'ROLE_USER',parts:[{data:input}]}}));
+ assert.equal(task.status?.state,TaskState.TASK_STATE_COMPLETED);const image=task.artifacts[0].parts[0];assert.equal(image.content?.$case,'raw');assert.equal(image.mediaType,'image/png');assert.equal((await sharp(image.content.value).metadata()).width,960);
+ assert.equal((await a2a.getTask(GetTaskRequest.fromJSON({id:task.id}))).status?.state,TaskState.TASK_STATE_COMPLETED);
+ console.log(JSON.stringify({a2a:'passed',protocol:a2a.protocolVersion,legacyCardProtocol:legacyCard.protocolVersion,live:process.env.SMOKE_LIVE==='true',durationMs:Math.round(performance.now()-started)}));
 }else assert.equal((await fetch(`${root}/.well-known/agent-card.json`,{headers})).status,404);
 const timings=[];
 for(let round=0;round<5;round++)await Promise.all(Array.from({length:4},async()=>{const start=performance.now();const r=await fetch(`${root}/v1/charts`,{method:'POST',headers,body:JSON.stringify({spec,output:{format:'png'}})});assert.equal(r.status,200);await r.arrayBuffer();timings.push(performance.now()-start);}));

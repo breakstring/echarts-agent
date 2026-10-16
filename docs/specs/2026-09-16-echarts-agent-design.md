@@ -33,7 +33,7 @@ flowchart TD
 | ECharts / Sharp | 6.1.0 / 0.35.4 |
 | Mastra core / OpenAI compatible adapter | 1.67.0 / 3.0.49 |
 | 官方 MCP SDK | 1.30.0；已测协议修订 2025-11-25 |
-| 官方 A2A SDK | 0.3.14；wire 0.3.0，与当前 Mastra 依赖版本一致 |
+| 官方 A2A SDK | 1.3.0；wire 1.0（规范修订 1.0.1），使用内置 `compat/v0_3/server` 兼容 wire 0.3；旧 SDK 0.3.14 仅作为直接开发依赖用于真实旧客户端回归，Mastra 的传递依赖不变 |
 | 首家实测 Provider | 阿里云百炼；qwen3.8-flash；OpenAI-compatible endpoint |
 | 中文字体 | Noto Sans CJK SC；固定提交、SHA256、OFL 许可见 assets/fonts |
 
@@ -118,11 +118,13 @@ Node heap 不包含 Sharp native 内存，子进程不是完整安全沙箱。�
 
 MCP `/mcp` 为无状态 Streamable HTTP，每个请求独立协议实例。基础工具 `get_chart_capabilities/render_echarts/render_chart`，AI配置完整时增加 `generate_chart`。使用实际 SDK 客户端验证了握手、列工具、SVG text、PNG image 与 structuredContent。每次请求独立校验 Bearer；会话ID不能替代认证。执行中的断连会取消下游；独立的notifications/cancelled在无状态请求之间不提供关联保证，需要按任务ID取消时使用A2A。没有持久会话或跨请求恢复。
 
-A2A 默认关闭，必须配置 SERVICE_API_KEY、A2A_ENABLED=true、A2A_PUBLIC_URL（不含路径、query、凭据的 origin）。Agent Card 在 `/.well-known/agent-card.json`，JSON-RPC 在 `/a2a`。仅 message/send、tasks/get、tasks/cancel；消息为一个 data part `{operation:render|chart|generate,request:对应HTTP请求体}`，task ID 由服务生成。
+A2A 默认关闭，必须配置 SERVICE_API_KEY、A2A_ENABLED=true、A2A_PUBLIC_URL（不含路径、query、凭据的 origin）。Agent Card 在 `/.well-known/agent-card.json`，JSON-RPC 在 `/a2a`，两者均需要 Bearer 认证。2026-10-16 升级合同支持 wire `1.0`（协议规范修订 `1.0.1`），并保留 wire `0.3` 兼容入口。请求头 `A2A-Version: 1.0` 选择新版；缺省或 `0.3` 返回旧版 Card 和协议语义。新版 Card 的 `supportedInterfaces` 宣告 wire `1.0`，旧版 Card 的 `protocolVersion` 为 `0.3.0`。
 
-blocking 默认true；false时先返回working任务，可再查询/取消。完成 artifact 通过 file.bytes 返回，SVG也编码为base64。失败任务含安全错误码。任务历史不写入存储；任务与artifact在内存最多100条、序列化内容合计64MiB，完成后最多保留10分钟，空间紧张提前淘汰终态任务。重启即丢失，不支持续写/恢复/文件URL输入/streaming/push。
+新版支持 `SendMessage`、`GetTask`、`CancelTask`，旧版保留 `message/send`、`tasks/get`、`tasks/cancel`。两版只接受一个结构化 data part，内容为 `{operation:"render"|"chart"|"generate",request:对应HTTP请求体}`，task ID 由服务生成。1.0 JSON wire 的用户消息使用 `role:"ROLE_USER"`、`parts:[{data:输入}]`；完成结果包在 `result.task` 内，artifact part 用 `raw` 字段返回 base64，并带 `mediaType`、`filename`。SVG 同样编码为 base64；0.3 保留 `file.bytes`。官方 1.3.0 客户端使用 `SendMessageRequest.fromJSON` 转换请求，`sendMessage` 已解包返回 Task；SDK 内部 part 使用 `content:{$case:"raw",value:Buffer}`，不能把内部表示直接作为 JSON wire。
 
-一个静态 key 表示共同信任域；持有同一 key 的调用方可读取该信任域的任务。不提供租户身份隔离、OAuth 或公开多用户服务合同。健康检查匿名，其余所有协议入口都需要 key（显式本地匿名仅适用于 HTTP/MCP）。
+1.0 的 `configuration.returnImmediately` 默认 false；true 时先返回工作中任务，可再查询/取消。0.3 对应 `configuration.blocking`，默认 true。重复取消已取消的任务会返回其取消状态，已完成或失败的任务返回不可取消错误。两版均不存储消息历史，`historyLength` 仅支持省略或 0。失败任务含安全错误码。任务与artifact在内存最多100条、序列化内容合计64MiB，完成后最多保留10分钟，空间紧张提前淘汰终态任务。重启即丢失，不支持 `ListTasks`、续写/恢复/文件输入/streaming/push。
+
+一个静态 key 表示共同信任域；持有同一 key 的调用方可读取该信任域的任务。新版拒绝非空 `tenant`，不提供租户身份隔离、OAuth 或公开多用户服务合同。健康检查匿名，其余所有协议入口都需要 key（显式本地匿名仅适用于 HTTP/MCP）。
 
 ## 验收与暂缓
 
@@ -138,7 +140,7 @@ blocking 默认true；false时先返回working任务，可再查询/取消。完
 - [参考 echarts-server](https://github.com/mengweijin/echarts-server)（只参考渲染链路，不直接复用其资源隔离方案）
 - [Mastra 结构化输出](https://mastra.ai/docs/agents/structured-output)
 - [官方 MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk) · [2025-11-25 tool content](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
-- [官方 A2A SDK](https://github.com/a2aproject/a2a-js) · [A2A 0.3.0](https://a2a-protocol.org/v0.3.0/specification/)
+- [官方 A2A SDK](https://github.com/a2aproject/a2a-js) · [A2A 1.0.1](https://a2a-protocol.org/v1.0.1/specification/) · [A2A 0.3.0 兼容合同](https://a2a-protocol.org/v0.3.0/specification/)
 - [Sharp 输入限制](https://sharp.pixelplumbing.com/api-constructor/)
 
 ## 静态图表扩展合同（2026-09-16，Frozen）

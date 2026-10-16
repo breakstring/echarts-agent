@@ -267,17 +267,19 @@ A2A_PUBLIC_URL=http://127.0.0.1:3000
 
 `A2A_PUBLIC_URL` 必须是调用方可访问的服务 origin，不带路径、查询参数或凭据。远程部署时替换本机地址。
 
-- Agent Card：`/.well-known/agent-card.json`，也需要 Bearer 认证。
-- JSON-RPC：`/a2a`；协议为 **A2A 0.3.0**。
-- 支持 `message/send`、`tasks/get`、`tasks/cancel`。
-- 输入为一个结构化 data part：`{operation:"render"|"chart"|"generate", request:对应HTTP请求体}`。
-- 图片在 Task artifact 的 `file.bytes` 中，以 base64 返回，不提供下载 URL。
+- Agent Card：`/.well-known/agent-card.json`，也需要 Bearer 认证。请求头 `A2A-Version: 1.0` 获取新版 Card；缺省或 `0.3` 保留旧版 Card。
+- JSON-RPC：`/a2a`；支持 **A2A 1.0**（规范修订 1.0.1）及 **0.3** 兼容协议。新版请求带 `A2A-Version: 1.0`。
+- 1.0 支持 `SendMessage`、`GetTask`、`CancelTask`；0.3 保留 `message/send`、`tasks/get`、`tasks/cancel`。
+- 输入为一个结构化 data part：`{operation:"render"|"chart"|"generate", request:对应HTTP请求体}`。1.0 JSON 消息使用 `role:"ROLE_USER"` 和 `parts:[{data:输入}]`。
+- 1.0 图片以 base64 放在 `result.task.artifacts[].parts[].raw`，另有 `mediaType`、`filename`；0.3 保留 `file.bytes`。两版均不提供下载 URL。
 
 ```bash
 CHART_URL=http://127.0.0.1:3000 node examples/a2a-client.mjs
 ```
 
-客户端环境需设置与服务端一致的 `SERVICE_API_KEY`，输出为 `chart-a2a.png`。设置 `configuration.blocking=false` 可先拿任务 ID 再查询。任务完成后最多保留 10 分钟，内存最多 100 条/64 MiB，容量压力时提前淘汰，重启后丢失。不支持流式、推送通知、续写或文件输入。同一个 key 的调用方共享任务访问权限。
+示例使用官方 `@a2a-js/sdk` 1.3.0 客户端，自动发送版本请求头；客户端环境需设置与服务端一致的 `SERVICE_API_KEY`，输出为 `chart-a2a.png`。SDK 用 `SendMessageRequest.fromJSON` 将 JSON 请求转换为内部类型，`sendMessage` 直接返回 Task，图片位于 `part.content.value`（`$case === "raw"`，类型为 `Buffer`），与上面的 JSON wire 表示不同。
+
+1.0 设置 `configuration.returnImmediately=true` 可先拿任务 ID 再查询；默认等待任务结束。0.3 对应设置为 `configuration.blocking=false`。重复取消已取消的任务会返回其取消状态；已完成或失败的任务不可取消。两版均不存储消息历史，`historyLength` 仅支持省略或 0。任务完成后最多保留 10 分钟，内存最多 100 条/64 MiB，容量压力时提前淘汰，重启后丢失。不支持 `ListTasks`、流式、推送通知、续写或文件输入。同一个 key 的调用方共享任务访问权限，非空 `tenant` 会被拒绝。
 
 ## 配置参考
 

@@ -267,17 +267,19 @@ A2A_PUBLIC_URL=http://127.0.0.1:3000
 
 `A2A_PUBLIC_URL` must be the service origin reachable by callers, without a path, query, or credentials. Replace the loopback address for remote deployments.
 
-- Agent Card: `/.well-known/agent-card.json`; Bearer authentication is required here too.
-- JSON-RPC: `/a2a`; protocol: **A2A 0.3.0**.
-- Supported methods: `message/send`, `tasks/get`, and `tasks/cancel`.
-- Input: one structured data part containing `{operation:"render"|"chart"|"generate", request:corresponding HTTP body}`.
-- Images are returned as base64 in a Task artifact's `file.bytes`, not as a download URL.
+- Agent Card: `/.well-known/agent-card.json`; Bearer authentication is required here too. Send `A2A-Version: 1.0` for the new Card; omitting the header or sending `0.3` preserves the legacy Card.
+- JSON-RPC: `/a2a`; supports **A2A 1.0** (specification revision 1.0.1) with **0.3** compatibility. Send `A2A-Version: 1.0` for new requests.
+- 1.0 methods: `SendMessage`, `GetTask`, and `CancelTask`. The 0.3 methods remain `message/send`, `tasks/get`, and `tasks/cancel`.
+- Input: one structured data part containing `{operation:"render"|"chart"|"generate", request:corresponding HTTP body}`. A 1.0 JSON message uses `role:"ROLE_USER"` and `parts:[{data:input}]`.
+- 1.0 images are returned as base64 in `result.task.artifacts[].parts[].raw`, with `mediaType` and `filename`; 0.3 retains `file.bytes`. Neither version provides download URLs.
 
 ```bash
 CHART_URL=http://127.0.0.1:3000 node examples/a2a-client.mjs
 ```
 
-Set the same `SERVICE_API_KEY` in the client environment. The output is `chart-a2a.png`. Set `configuration.blocking=false` to receive a task ID before completion and query it later. Completed tasks are retained for at most 10 minutes, with limits of 100 tasks and 64 MiB in memory; capacity pressure may evict them sooner. Restarting loses all tasks. Streaming, push notifications, continuation, and file inputs are unsupported. Callers sharing a key share access to tasks.
+The example uses the official `@a2a-js/sdk` 1.3.0 client, which sends the version header automatically. Set the same `SERVICE_API_KEY` in the client environment. The output is `chart-a2a.png`. The SDK converts JSON requests to its internal types using `SendMessageRequest.fromJSON`; `sendMessage` returns the Task directly, and image bytes are in `part.content.value` (`$case === "raw"`, a `Buffer`). These SDK types differ from the JSON wire representation above.
+
+In 1.0, set `configuration.returnImmediately=true` to receive a task ID before completion and query it later; the default waits for completion. The 0.3 equivalent is `configuration.blocking=false`. Canceling an already canceled task returns its canceled state; completed or failed tasks cannot be canceled. Neither version stores message history; `historyLength` must be omitted or zero. Completed tasks are retained for at most 10 minutes, with limits of 100 tasks and 64 MiB in memory; capacity pressure may evict them sooner. Restarting loses all tasks. `ListTasks`, streaming, push notifications, continuation, and file inputs are unsupported. Callers sharing a key share access to tasks, and nonempty `tenant` values are rejected.
 
 ## Configuration reference
 
