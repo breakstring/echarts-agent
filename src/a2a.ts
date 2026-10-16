@@ -69,7 +69,7 @@ class ChartExecutor implements AgentExecutor {
     try {
       const part = context.userMessage.parts[0];
       const input = inputSchema.parse(part?.content?.$case === 'data' ? part.content.value : undefined);
-      const artifact = input.operation === 'render' ? await this.service.raw(input.request, controller.signal) : input.operation === 'chart' ? await this.service.chart(input.request, controller.signal) : (await this.service.generate(input.request, controller.signal)).artifact;
+      const artifact = input.operation === 'render' ? await this.service.raw(input.request, controller.signal) : input.operation === 'chart' ? await this.service.chart(input.request, controller.signal) : (await this.service.generate(input.request, controller.signal, 'a2a')).artifact;
       if (controller.signal.aborted) return;
       const file: Part = { filename: artifact.svg ? 'chart.svg' : 'chart.png', mediaType: artifact.mimeType, content: { $case: 'raw', value: artifact.base64 ? Buffer.from(artifact.base64, 'base64') : Buffer.from(artifact.svg!) }, metadata: undefined };
       const result: Artifact = { artifactId: randomUUID(), name: 'chart', description: '', extensions: [], parts: [file], metadata: { width: artifact.width, height: artifact.height, bytes: artifact.bytes } };

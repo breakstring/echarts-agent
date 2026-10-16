@@ -263,6 +263,10 @@ node --input-type=module -e "import fs from 'node:fs'; const r=JSON.parse(fs.rea
 
 模型会收到意图、字段类型、行数和前 5 行有界样例；**这些内容会发送到你配置的模型供应商**。完整原始数据由本地程序绑定，不由模型重写。每次生成最多调用模型两次，默认总时限 60 秒，并发上限 2。调用方仍应复核图表类型和字段选择。
 
+模型请求显式使用 `response_format: {"type":"json_object"}` 和 `enable_thinking: false`，同时保留提示词中的 Schema 与本地完整校验；未启用供应商原生 JSON Schema。非法 JSON、结构错误、输出截断或字段映射错误最多纠正一次，共用总时限；认证、网络及上游 HTTP 失败不自动重试。
+
+`LLM_LOG_LEVEL` 默认 `info`，支持 `debug/info/warn/error/off`（不区分大小写）。`info` 记录模型耗时、可用的 token 用量、结束原因及生成结果；`warn` 记录失败和是否纠错，`error` 记录最终失败；`debug` 增加生成、模型、计划校验和渲染阶段。各阶段用 `generationId` 关联，并标明 HTTP/MCP/A2A 入口。所有级别都只记录允许的元数据，不记录意图、数据样例、模型正文、异常原文、认证头或密钥。该配置只控制模型生成诊断，不影响 HTTP 访问日志。
+
 已实测百炼 `qwen3.8-flash`。其他 OpenAI-compatible 服务需自行验证。未配置模型时仍可使用确定性渲染；`LLM_ENABLED=false` 强制禁用模型。
 
 ## 接入 MCP 客户端
@@ -330,6 +334,7 @@ CHART_URL=http://127.0.0.1:3000 node examples/a2a-client.mjs
 | `LLM_PROVIDER` | `openai-compatible`，供应商标识 |
 | `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` | 启用模型时均需配置 |
 | `LLM_TIMEOUT_MS` | `60000`，范围 100–60000 |
+| `LLM_LOG_LEVEL` | `info`；`debug/info/warn/error/off`，模型生成的脱敏诊断日志 |
 | `A2A_ENABLED` / `A2A_PUBLIC_URL` | 默认关闭；启用时必须配置服务 origin 和服务 key |
 
 兼容小写 `llm_provider`、`llm_base_url`、`llm_default_model`、`llm_api_key`；对应大写变量优先。AI 状态 `ready` 只表示配置完整，不表示供应商已通过在线探测。
@@ -361,7 +366,7 @@ npm test
 自动化测试覆盖输入合同、渲染、HTTP/MCP/A2A 和消费者客户端；历史真实模型与双架构容器验收见[完成证据](docs/project/progress-log.md)，各次验证边界以对应记录为准。可选实测命令：
 
 ```bash
-npm run smoke:live  # 会向 .env.local 配置的模型发送请求
+npm run smoke:live  # HTTP/MCP/A2A 共 4 次生成请求，单次最多调用模型两次
 npm run build && node --env-file-if-exists=.env.local scripts/smoke-extended.mjs
 node scripts/smoke-docker.mjs echarts-agent:local --a2a
 node scripts/smoke-docker.mjs echarts-agent:local --a2a --live

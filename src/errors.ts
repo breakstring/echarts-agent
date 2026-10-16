@@ -3,6 +3,9 @@ import { ZodError } from 'zod';
 export class AppError extends Error {
   constructor(public code: string, public status: number, message: string, public details: { path: string; reason: string }[] = []) { super(message); }
 }
+export class ModelOutputError extends Error {
+  constructor() { super('模型输出不符合图表计划合同'); }
+}
 export function safeError(error: unknown): AppError {
   if (error instanceof AppError) return error;
   if (error instanceof ZodError) return new AppError('INVALID_INPUT', 422, '请求不符合图表合同', error.issues.slice(0, 12).map(i => ({ path: i.path.map(p => typeof p === 'number' ? p : /^[a-zA-Z_][\w-]{0,63}$/.test(String(p)) ? String(p) : '[field]').join('.'), reason: i.code })));

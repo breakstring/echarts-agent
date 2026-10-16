@@ -263,6 +263,10 @@ The generation endpoint returns JSON, not raw PNG bytes. `artifact` contains `mi
 
 The model receives your intent, field types, row count, and bounded samples from the first five rows. **This content is sent to your configured model provider.** The full original data is bound locally and is not rewritten by the model. Each generation makes at most two model calls, with a default total timeout of 60 seconds and a concurrency limit of 2. Review the chart type and field choices before using the result.
 
+Model requests explicitly send `response_format: {"type":"json_object"}` and `enable_thinking: false`, while retaining the schema in the prompt and full local validation. Native JSON Schema mode is not enabled. Invalid JSON, schema errors, truncated output, and invalid field mappings allow one corrective call within the same total deadline. Authentication, network, and upstream HTTP failures are not automatically retried.
+
+`LLM_LOG_LEVEL` defaults to `info` and accepts `debug/info/warn/error/off`, case-insensitively. `info` includes model latency, available token usage, finish reason, and generation results; `warn` includes failures and correction decisions; `error` includes final failures. `debug` adds generation, model, plan validation, and rendering stages. Events share a `generationId`, with HTTP/MCP/A2A entry metadata. Every level records only allowed metadata: no intent, data samples, model content, raw exceptions, authentication headers, or keys. This setting controls generation diagnostics independently of HTTP access logs.
+
 DashScope `qwen3.8-flash` has been tested. Other OpenAI-compatible services need separate validation. Deterministic rendering works without a model; set `LLM_ENABLED=false` to explicitly disable model calls.
 
 ## Connect an MCP client
@@ -330,6 +334,7 @@ See [.env.example](.env.example) for the template. `npm run dev` loads `.env.loc
 | `LLM_PROVIDER` | `openai-compatible`; provider identifier |
 | `LLM_BASE_URL` / `LLM_MODEL` / `LLM_API_KEY` | All required when using a model |
 | `LLM_TIMEOUT_MS` | `60000`; range: 100–60000 |
+| `LLM_LOG_LEVEL` | `info`; `debug/info/warn/error/off` for sanitized generation diagnostics |
 | `A2A_ENABLED` / `A2A_PUBLIC_URL` | Disabled by default; enabling requires a service origin and service key |
 
 Lowercase aliases are supported: `llm_provider`, `llm_base_url`, `llm_default_model`, and `llm_api_key`. The corresponding uppercase variables take precedence. AI status `ready` means configuration is complete, not that provider connectivity has been tested.
@@ -361,7 +366,7 @@ npm test
 Automated tests cover input contracts, rendering, HTTP/MCP/A2A, and consumer clients. Historical live-model and dual-architecture container checks are recorded in the [completion log](docs/project/progress-log.md); each record states its verification scope. Optional live checks:
 
 ```bash
-npm run smoke:live  # Sends requests to the model configured in .env.local
+npm run smoke:live  # 4 HTTP/MCP/A2A generations; at most 2 model calls each
 npm run build && node --env-file-if-exists=.env.local scripts/smoke-extended.mjs
 node scripts/smoke-docker.mjs echarts-agent:local --a2a
 node scripts/smoke-docker.mjs echarts-agent:local --a2a --live

@@ -12,7 +12,7 @@ try {
   pool = new RenderPool({ size: integer('RENDER_WORKERS', 2, 1, 4), queueLimit: integer('RENDER_QUEUE_LIMIT', 8, 0, 32), timeoutMs: integer('RENDER_TIMEOUT_MS', 10_000, 100, 30_000) });
   const llm = configuredPlanner(process.env);
   if (process.env.A2A_ENABLED === 'true' && !process.env.A2A_PUBLIC_URL) throw new Error('启用 A2A 需要 A2A_PUBLIC_URL');
-  const app = createServer(new ChartService(pool, llm.planner, llm.status, integer('LLM_TIMEOUT_MS', 60_000, 100, 60_000)), { apiKey, allowAnonymous, log: true, a2aPublicUrl: process.env.A2A_ENABLED === 'true' ? process.env.A2A_PUBLIC_URL : undefined });
+  const app = createServer(new ChartService(pool, llm.planner, llm.status, integer('LLM_TIMEOUT_MS', 60_000, 100, 60_000), llm.diagnostics), { apiKey, allowAnonymous, log: true, a2aPublicUrl: process.env.A2A_ENABLED === 'true' ? process.env.A2A_PUBLIC_URL : undefined });
   await pool.waitReady();
   await app.listen({ host: process.env.HOST ?? '0.0.0.0', port: integer('PORT', 3000, 1, 65535) });
   console.log(JSON.stringify({ event: 'ready', port: Number(process.env.PORT ?? 3000), ai: llm.status }));

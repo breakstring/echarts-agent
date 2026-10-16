@@ -44,7 +44,7 @@ export function createServer(service: ChartService, options: { apiKey?: string; 
   app.get('/v1/capabilities', async () => service.capabilities());
   app.post('/v1/render', async (request, reply) => binary(await service.raw(request.body, cancellation(request, reply)), reply));
   app.post('/v1/charts', async (request, reply) => binary(await service.chart(request.body, cancellation(request, reply)), reply));
-  app.post('/v1/generate', async (request, reply) => ({ requestId: request.id, ...await service.generate(request.body, cancellation(request, reply)) }));
+  app.post('/v1/generate', async (request, reply) => ({ requestId: request.id, ...await service.generate(request.body, cancellation(request, reply), 'http') }));
   app.get('/openapi.json', async () => openApiDocument());
   app.all('/mcp', async (request, reply) => {
     const signal = cancellation(request, reply);
@@ -63,7 +63,7 @@ export function createServer(service: ChartService, options: { apiKey?: string; 
     mcp.registerTool('render_chart', { description: '结构化数据画图的首选：由当前 Agent 选择图表类型和字段映射，提交完整 ChartSpec，无需服务端模型。先按用户口径整理数据；服务不解析 CSV/Excel，也不聚合、排序或补点。PNG 返回 image，SVG 返回 text，structuredContent 为元数据；客户端负责保存或展示，不提供下载 URL。修改图表时保留数据并提交更新后的完整请求，无图表会话或编辑 ID。', inputSchema: chartRequestSchema, outputSchema: metadataSchema }, async input => call(() => service.chart(input, signal)));
     if (service.aiStatus === 'ready') mcp.registerTool('generate_chart', { description: '需要将选图和字段映射委托给服务端模型时使用，只有模型配置完整时提供。会将意图、字段类型、行数及前 5 行有界样例发送给配置的模型供应商；服务不聚合或补造数据。当前 Agent 能生成 ChartSpec 时优先 render_chart。PNG 返回 image，SVG 返回 text；structuredContent 含元数据、最终 spec/option/warnings，需复核并由客户端保存图片，无下载 URL。', inputSchema: generateRequestSchema, outputSchema: metadataSchema.extend({ spec: z.unknown(), option: z.unknown(), warnings: z.array(z.string()) }) }, async input => {
       let generation: Awaited<ReturnType<ChartService['generate']>> | undefined;
-      const result = await call(async () => { generation = await service.generate(input, signal); return generation.artifact; });
+      const result = await call(async () => { generation = await service.generate(input, signal, 'mcp'); return generation.artifact; });
       if (generation && 'structuredContent' in result) {
         const complete = { ...result, structuredContent: { ...result.structuredContent, spec: generation.spec, option: generation.option, warnings: generation.warnings } };
         if (Buffer.byteLength(JSON.stringify(complete)) > LIMITS.outputBytes) return { isError: true, content: [{ type: 'text' as const, text: JSON.stringify({ error: { code: 'OUTPUT_TOO_LARGE', message: 'MCP 响应超限，请减小尺寸或改用 HTTP', requestId: request.id } }) }] };
